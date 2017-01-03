@@ -383,6 +383,142 @@ public class RDBMSAndesContextStoreImpl implements AndesContextStore {
         }
     }
 
+    @Override
+    public void assignNodeForQueue(String queueName, String nodeID) throws AndesException {
+        Connection connection = null;
+        PreparedStatement preparedStatement = null;
+
+        String task = RDBMSConstants.TASK_ASSIGNING_QUEUE_TO_NODE + " queue name: "
+                + queueName + " node id: " + nodeID;
+        try {
+            // done as a transaction
+            connection = getConnection();
+
+            preparedStatement = connection.prepareStatement(RDBMSConstants.PS_INSERT_QUEUE_NODE_ASSIGNMENT);
+            preparedStatement.setString(1, queueName);
+            preparedStatement.setString(2, nodeID);
+            preparedStatement.executeUpdate();
+
+            connection.commit();
+
+        } catch (SQLException e) {
+            rollback(connection, task);
+            throw rdbmsStoreUtils.convertSQLException("Error occurred while " + task, e);
+        } finally {
+            close(preparedStatement, task);
+            close(connection, task);
+        }
+    }
+
+    @Override
+    public String getQueueOwningNode(String queueName) throws AndesException {
+        Connection connection = null;
+        PreparedStatement preparedStatement = null;
+
+        String task = RDBMSConstants.TASK_RETRIEVING_QUEUE_TO_NODE_ASSIGNMENT + " queue name: "
+                + queueName;
+        String nodeInformation = null;
+        try {
+            // done as a transaction
+            connection = getConnection();
+
+            preparedStatement = connection.prepareStatement(RDBMSConstants.PS_SELECT_ASSIGNED_NODE_FOR_QUEUE);
+            preparedStatement.setString(1, queueName);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                nodeInformation = resultSet.getString(RDBMSConstants.NODE_INFO);
+                break;
+            }
+            connection.commit();
+            return nodeInformation;
+
+        } catch (SQLException e) {
+            rollback(connection, task);
+            throw rdbmsStoreUtils.convertSQLException("Error occurred while " + task, e);
+        } finally {
+            close(preparedStatement, task);
+            close(connection, task);
+        }
+    }
+
+    @Override
+    public void updateQueueOwningNode(String queueName) throws AndesException {
+        Connection connection = null;
+        PreparedStatement preparedStatement = null;
+
+        String task = RDBMSConstants.TASK_UPDATING_QUEUE_TO_NODE_ASSIGNMENT + " queue name: " + queueName;
+        try {
+            // done as a transaction
+            connection = getConnection();
+
+            preparedStatement = connection.prepareStatement(RDBMSConstants.PS_UPDATE_QUEUE_NODE_ASSIGNMENT);
+            preparedStatement.setString(1, queueName);
+            preparedStatement.executeUpdate();
+            connection.commit();
+
+        } catch (SQLException e) {
+            rollback(connection, task);
+            throw rdbmsStoreUtils.convertSQLException("Error occurred while " + task, e);
+        } finally {
+            close(preparedStatement, task);
+            close(connection, task);
+        }
+    }
+
+    @Override
+    public void removeQueueOwningInformation(String queueName) throws AndesException {
+        Connection connection = null;
+        PreparedStatement preparedStatement = null;
+
+        String task = RDBMSConstants.TASK_REMOVING_QUEUE_TO_NODE_ASSIGNMENT + " queue name: " + queueName;
+        try {
+            // done as a transaction
+            connection = getConnection();
+
+            preparedStatement = connection.prepareStatement(RDBMSConstants.PS_DELETE_QUEUE_NODE_ASSIGNMENT);
+            preparedStatement.setString(1, queueName);
+            preparedStatement.executeUpdate();
+            connection.commit();
+
+        } catch (SQLException e) {
+            rollback(connection, task);
+            throw rdbmsStoreUtils.convertSQLException("Error occurred while " + task, e);
+        } finally {
+            close(preparedStatement, task);
+            close(connection, task);
+        }
+    }
+
+    @Override
+    public List<String> getAllQueuesOwnedByNode(String nodeID) throws AndesException {
+        Connection connection = null;
+        PreparedStatement preparedStatement = null;
+
+        String task = RDBMSConstants.TASK_RETRIEVING_QUEUES_ASSIGNED_TO_NODE + " nodeID: " + nodeID;
+        List<String> ownedQueues = new ArrayList<>(5);
+        try {
+            // done as a transaction
+            connection = getConnection();
+
+            preparedStatement = connection.prepareStatement(RDBMSConstants.PS_SELECT_OWNED_QUEUES_BY_NODE);
+            preparedStatement.setString(1, nodeID);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                String queue = resultSet.getString(RDBMSConstants.QUEUE_NAME);
+                ownedQueues.add(queue);
+            }
+            connection.commit();
+            return ownedQueues;
+
+        } catch (SQLException e) {
+            rollback(connection, task);
+            throw rdbmsStoreUtils.convertSQLException("Error occurred while " + task, e);
+        } finally {
+            close(preparedStatement, task);
+            close(connection, task);
+        }
+    }
+
     /**
      * {@inheritDoc}
      */

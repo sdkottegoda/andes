@@ -220,6 +220,67 @@ public class FailureObservingAndesContextStore implements AndesContextStore {
      * {@inheritDoc}
      */
     @Override
+    public void assignNodeForQueue(String queueName, String nodeID) throws AndesException {
+        try {
+            wrappedAndesContextStoreInstance.assignNodeForQueue(queueName, );
+        } catch (AndesStoreUnavailableException exception) {
+            notifyFailures(exception);
+            throw exception;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     * @param queueName
+     */
+    @Override
+    public String getQueueOwningNode(String queueName) throws AndesException {
+        try {
+            wrappedAndesContextStoreInstance.getQueueOwningNode(queueName);
+        } catch (AndesStoreUnavailableException exception) {
+            notifyFailures(exception);
+            throw exception;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     * @param queueName
+     */
+    @Override
+    public void updateQueueOwningNode(String queueName) throws AndesException {
+        try {
+            wrappedAndesContextStoreInstance.updateQueueOwningNode(queueName);
+        } catch (AndesStoreUnavailableException exception) {
+            notifyFailures(exception);
+            throw exception;
+        }
+    }
+
+    @Override
+    public void removeQueueOwningInformation(String queueName) throws AndesException {
+        try {
+            wrappedAndesContextStoreInstance.removeQueueOwningInformation(queueName);
+        } catch (AndesStoreUnavailableException exception) {
+            notifyFailures(exception);
+            throw exception;
+        }
+    }
+
+    @Override
+    public List<String> getAllQueuesOwnedByNode(String nodeID) throws AndesException {
+        try {
+            return wrappedAndesContextStoreInstance.getAllQueuesOwnedByNode(nodeID);
+        } catch (AndesStoreUnavailableException exception) {
+            notifyFailures(exception);
+            throw exception;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public Map<String, String> getAllStoredNodeData() throws AndesException {
         try {
             return wrappedAndesContextStoreInstance.getAllStoredNodeData();

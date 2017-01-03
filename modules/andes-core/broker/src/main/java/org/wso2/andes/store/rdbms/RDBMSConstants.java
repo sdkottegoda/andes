@@ -104,6 +104,7 @@ public class RDBMSConstants {
     protected static final String BINDINGS_TABLE = "MB_BINDING";
     protected static final String QUEUE_INFO_TABLE = "MB_QUEUE";
     protected static final String QUEUE_COUNTER_TABLE = "MB_QUEUE_COUNTER";
+    protected static final String QUEUE_MASTER_TABLE = "QUEUE_MASTER";
     // Slot related tables
     protected static final String SLOT_TABLE = "MB_SLOT";
     protected static final String SLOT_MESSAGE_ID_TABLE = "MB_SLOT_MESSAGE_ID";
@@ -126,6 +127,8 @@ public class RDBMSConstants {
     protected static final String DURABLE_SUB_DATA = "SUBSCRIPTION_DATA";
     protected static final String NODE_ID = "NODE_ID";
     protected static final String NODE_INFO = "NODE_DATA";
+    protected static final String QUEUE_NAME = "QUEUE_NAME";
+    protected static final String
     protected static final String EXCHANGE_NAME = "EXCHANGE_NAME";
     protected static final String EXCHANGE_DATA = "EXCHANGE_DATA";
     protected static final String BINDING_INFO = "BINDING_DETAILS";
@@ -395,6 +398,32 @@ public class RDBMSConstants {
             + NODE_INFO + ")"
             + " VALUES (?,?)";
 
+    protected static final String PS_INSERT_QUEUE_NODE_ASSIGNMENT =
+            "INSERT INTO " + QUEUE_MASTER_TABLE + " ( "
+                    + QUEUE_NAME + ","
+                    + NODE_ID + ")"
+                    + " VALUES (?,?)";
+
+    protected static final String PS_UPDATE_QUEUE_NODE_ASSIGNMENT =
+            "UPDATE " + QUEUE_MASTER_TABLE
+                    + " SET " + NODE_ID + "=?"
+                    + " WHERE " + QUEUE_NAME + "=?";
+
+    protected static final String PS_DELETE_QUEUE_NODE_ASSIGNMENT =
+            "DELETE FROM " + QUEUE_MASTER_TABLE
+                    + " WHERE " + QUEUE_NAME + "=?";
+
+    protected static final String PS_SELECT_ASSIGNED_NODE_FOR_QUEUE =
+            "SELECT " + NODE_INFO_TABLE + "." + NODE_INFO
+                    + " FROM " + NODE_INFO_TABLE + " INNER JOIN "
+                    + QUEUE_MASTER_TABLE + " ON " + NODE_INFO_TABLE
+                    + "." + NODE_ID + "=" + QUEUE_MASTER_TABLE + "." + NODE_ID
+                    + "WHERE" + QUEUE_NAME + "=?";
+
+    protected static final String PS_SELECT_OWNED_QUEUES_BY_NODE =
+            "SELECT " + QUEUE_NAME
+                    + " FROM " + QUEUE_MASTER_TABLE
+                    + " WHERE " + NODE_ID + "=?";
     /**
      * Prepared statement to insert cluster notification.
      */
@@ -1097,6 +1126,11 @@ public class RDBMSConstants {
 
     protected static final String TASK_REMOVING_DURABLE_SUBSCRIPTION = "removing durable subscription. ";
     protected static final String TASK_STORING_NODE_INFORMATION = "storing node information";
+    protected static final String TASK_ASSIGNING_QUEUE_TO_NODE = "storing queue to node assignment";
+    protected static final String TASK_UPDATING_QUEUE_TO_NODE_ASSIGNMENT = "updating queue to node assignment";
+    protected static final String TASK_REMOVING_QUEUE_TO_NODE_ASSIGNMENT = "removing queue to node assignment";
+    protected static final String TASK_RETRIEVING_QUEUE_TO_NODE_ASSIGNMENT = "retrieving queue to node assignment";
+    protected static final String TASK_RETRIEVING_QUEUES_ASSIGNED_TO_NODE = "retrieving queues assigned to node";
     protected static final String TASK_STORING_CLUSTER_EVENT = "storing cluster event";
     protected static final String TASK_RETRIEVING_CLUSTER_EVENTS = "retrieving cluster events";
     protected static final String TASK_RETRIEVING_ALL_NODE_DETAILS = "retrieving all node information. ";
