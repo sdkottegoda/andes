@@ -20,13 +20,17 @@ package org.wso2.andes.server.cluster;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.andes.kernel.AndesContext;
+import org.wso2.andes.kernel.AndesContextStore;
 import org.wso2.andes.kernel.AndesException;
 import org.wso2.andes.management.common.mbeans.ClusterManagementInformation;
 import org.wso2.andes.management.common.mbeans.annotations.MBeanConstructor;
+import org.wso2.andes.management.common.mbeans.annotations.MBeanOperationParameter;
+import org.wso2.andes.server.cluster.coordination.distributor.QueueDistributor;
 import org.wso2.andes.server.management.AMQManagedObject;
 
 import java.util.List;
 import javax.management.JMException;
+import javax.management.MBeanException;
 
 /**
  * <code>ClusterManagementInformationMBean</code> The the JMS MBean that expose cluster management information
@@ -98,5 +102,18 @@ public class ClusterManagementInformationMBean extends AMQManagedObject implemen
     @Override
     public boolean getStoreHealth() {
         return this.clusterManager.getStoreHealth();
+    }
+
+    @Override
+    public String getOwningNodeOfQueue(@MBeanOperationParameter(name = "queueName", description = "get queue name ?")
+            String queueName, @MBeanOperationParameter(name = "protocol", description = " protocol (amqp/mqtt) " +
+            "to get port?") String protocol) throws MBeanException {
+        try {
+            AndesContextStore contextStore = AndesContext.getInstance().getAndesContextStore();
+            return new QueueDistributor(contextStore).getMasterNode(queueName, protocol);
+        } catch (AndesException e) {
+            logger.error("Error while retrieving owning node for queue", e);
+            throw new MBeanException(e, "Error while retrieving owning node for queue");
+        }
     }
 }

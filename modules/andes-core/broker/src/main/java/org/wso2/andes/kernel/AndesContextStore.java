@@ -122,47 +122,6 @@ public interface AndesContextStore extends HealthAwareStore {
     void storeNodeDetails(String nodeID, String data) throws AndesException;
 
     /**
-     * Assign a Node to own the queue
-     *
-     * @param queueName name of the queue
-     * @param nodeID
-     * @throws AndesException in case of DB issue
-     */
-    void assignNodeForQueue(String queueName, String nodeID) throws AndesException;
-
-    /**
-     * Query which node is owning the queue
-     *
-     * @param queueName name of the queue
-     * @throws AndesException in case of DB issue
-     */
-    String getQueueOwningNode(String queueName) throws AndesException;
-
-    /**
-     * Update the node owning the queue
-     *
-     * @param queueName name of the queue
-     * @throws AndesException in case of DB issue
-     */
-    void updateQueueOwningNode(String queueName) throws AndesException;
-
-    /**
-     * Remove stored queue to node assignment information
-     *
-     * @param queueName queue name
-     * @throws AndesException  in case of DB issue
-     */
-    void removeQueueOwningInformation(String queueName) throws AndesException;
-
-    /**
-     * Get all queues owned by given node
-     * @param nodeID ID of the node
-     * @return List of queues
-     * @throws AndesException in case of DB issue
-     */
-    List<String> getAllQueuesOwnedByNode(String nodeID) throws AndesException;
-
-    /**
      * Get all node information stored.
      *
      * @return map of node information
@@ -523,6 +482,47 @@ public interface AndesContextStore extends HealthAwareStore {
     /*
      * ============================ Coordination related methods =======================================
      */
+
+    /**
+     * Assign a Node to own the queue
+     *
+     * @param queueName name of the queue
+     * @param nodeID
+     * @throws AndesException in case of DB issue
+     */
+    void assignNodeForQueue(String queueName, String nodeID) throws AndesException;
+
+    /**
+     * Query which node is owning the queue
+     *
+     * @param queueName name of the queue
+     * @throws AndesException in case of DB issue
+     */
+    String getQueueOwningNode(String queueName) throws AndesException;
+
+    /**
+     * Update the node owning the queue
+     *
+     * @param queueName name of the queue
+     * @throws AndesException in case of DB issue
+     */
+    void updateQueueOwningNode(String queueName) throws AndesException;
+
+    /**
+     * Remove stored queue to node assignment information
+     *
+     * @param queueName queue name
+     * @throws AndesException  in case of DB issue
+     */
+    void removeQueueOwningInformation(String queueName) throws AndesException;
+
+    /**
+     * Get all queues owned by given node
+     * @param nodeID ID of the node
+     * @return List of queues
+     * @throws AndesException in case of DB issue
+     */
+    List<String> getAllQueuesOwnedByNode(String nodeID) throws AndesException;
 
     /**
      * Try to create the coordinator entry using local node information.

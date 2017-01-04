@@ -212,7 +212,11 @@ public class ClusterManager implements StoreHealthListener{
             log.info("Initializing Standalone Mode. Current Node ID:" + this.nodeId + " "
                      + InetAddress.getLocalHost().getHostAddress());
 
-            andesContextStore.storeNodeDetails(nodeId, InetAddress.getLocalHost().getHostAddress());
+            Integer port = AndesConfigurationManager.readValue(AndesConfiguration.
+                    TRANSPORTS_AMQP_DEFAULT_CONNECTION_PORT);
+
+            andesContextStore.storeNodeDetails(nodeId, InetAddress.getLocalHost().getHostAddress() + "|" + port);
+
         } catch (UnknownHostException e) {
             throw new AndesException("Unable to get the localhost address.", e);
         }
@@ -233,11 +237,22 @@ public class ClusterManager implements StoreHealthListener{
         this.nodeId = clusterAgent.getLocalNodeIdentifier();
         log.info("Initializing Cluster Mode. Current Node ID:" + this.nodeId);
 
-        String localMemberHostAddress = clusterAgent.getLocalNodeIdentifier();
 
-        if (log.isDebugEnabled()) {
-            log.debug("Stored node ID : " + this.nodeId +  ". Stored node data(Hazelcast local "
-                      + "member host address) : " + localMemberHostAddress);
+        //update node information in durable store
+        List<String> nodeIDList = new ArrayList<>(andesContextStore.getAllStoredNodeData().keySet());
+
+        if(nodeIDList.contains(nodeId)) {
+            andesContextStore.removeNodeData(nodeId);
+        }
+
+        try {
+            Integer port = AndesConfigurationManager.readValue(AndesConfiguration.
+                    TRANSPORTS_AMQP_DEFAULT_CONNECTION_PORT);
+
+            andesContextStore.storeNodeDetails(nodeId, InetAddress.getLocalHost().getHostAddress() + "|" + port);
+
+        } catch (UnknownHostException e) {
+            throw new AndesException("Unable to get the localhost address.", e);
         }
     }
 
