@@ -22,9 +22,7 @@ import com.hazelcast.core.MemberAttributeEvent;
 import com.hazelcast.core.MembershipEvent;
 import com.hazelcast.core.MembershipListener;
 import org.apache.commons.lang.StringUtils;
-import org.wso2.andes.kernel.AndesContext;
 import org.wso2.andes.kernel.AndesException;
-import org.wso2.andes.kernel.slot.SlotCoordinationConstants;
 import org.wso2.andes.server.cluster.coordination.CoordinationConstants;
 
 import java.net.InetSocketAddress;
@@ -111,24 +109,6 @@ public class HazelcastCoordinationStrategy implements CoordinationStrategy, Memb
      * {@inheritDoc}
      */
     @Override
-    public InetSocketAddress getThriftAddressOfCoordinator() {
-        String hostname = thriftServerDetailsMap.get(SlotCoordinationConstants.THRIFT_COORDINATOR_SERVER_IP);
-        String portString = thriftServerDetailsMap.get(SlotCoordinationConstants.THRIFT_COORDINATOR_SERVER_PORT);
-
-        InetSocketAddress coordinatorAddress = null;
-
-        if ((null != hostname) && (null != portString)) {
-            int port = Integer.parseInt(portString);
-            coordinatorAddress = new InetSocketAddress(hostname, port);
-        }
-
-        return coordinatorAddress;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public List<String> getAllNodeIdentifiers() throws AndesException {
         Set<Member> members = hazelcastInstance.getCluster().getMembers();
         List<String> nodeIDList = new ArrayList<>();
@@ -168,11 +148,12 @@ public class HazelcastCoordinationStrategy implements CoordinationStrategy, Memb
      */
     private CoordinatorInformation getCoordinatorDetails() {
         String ipAddress = coordinatorNodeDetailsMap.get(
-                SlotCoordinationConstants.CLUSTER_COORDINATOR_SERVER_IP);
-        String port = coordinatorNodeDetailsMap.get(SlotCoordinationConstants.CLUSTER_COORDINATOR_SERVER_PORT);
+                CoordinationConstants.CLUSTER_COORDINATOR_SERVER_IP);
+        String port = coordinatorNodeDetailsMap.get(CoordinationConstants.CLUSTER_COORDINATOR_SERVER_PORT);
 
         return new CoordinatorInformation(ipAddress, port);
     }
+
     /**
      * {@inheritDoc}
      */
@@ -256,7 +237,6 @@ public class HazelcastCoordinationStrategy implements CoordinationStrategy, Memb
      */
     private void checkAndNotifyCoordinatorChange() {
         if (isCoordinator() && isCoordinator.compareAndSet(false, true)) {
-            updateThriftCoordinatorDetailsToMap();
             updateCoordinatorNodeDetailMap();
             configurableClusterAgent.becameCoordinator();
         } else {
@@ -271,25 +251,9 @@ public class HazelcastCoordinationStrategy implements CoordinationStrategy, Memb
     private void updateCoordinatorNodeDetailMap() {
         // Adding cluster coordinator's node IP and port
         Member localMember = hazelcastInstance.getCluster().getLocalMember();
-        coordinatorNodeDetailsMap.put(SlotCoordinationConstants.CLUSTER_COORDINATOR_SERVER_IP,
+        coordinatorNodeDetailsMap.put(CoordinationConstants.CLUSTER_COORDINATOR_SERVER_IP,
                 localMember.getSocketAddress().getAddress().getHostAddress());
-        coordinatorNodeDetailsMap.put(SlotCoordinationConstants.CLUSTER_COORDINATOR_SERVER_PORT,
+        coordinatorNodeDetailsMap.put(CoordinationConstants.CLUSTER_COORDINATOR_SERVER_PORT,
                 Integer.toString(localMember.getSocketAddress().getPort()));
-    }
-
-    /**
-     * Set coordinator's thrift server IP and port in hazelcast map.
-     */
-    private void updateThriftCoordinatorDetailsToMap() {
-
-        String thriftCoordinatorServerIP = AndesContext.getInstance().getThriftServerHost();
-        int thriftCoordinatorServerPort = AndesContext.getInstance().getThriftServerPort();
-
-
-        log.info("This node is elected as the Slot Coordinator. Registering " + thriftCoordinatorServerIP + ":"
-                + thriftCoordinatorServerPort);
-        thriftServerDetailsMap.put(SlotCoordinationConstants.THRIFT_COORDINATOR_SERVER_IP, thriftCoordinatorServerIP);
-        thriftServerDetailsMap.put(SlotCoordinationConstants.THRIFT_COORDINATOR_SERVER_PORT,
-                Integer.toString(thriftCoordinatorServerPort));
     }
 }

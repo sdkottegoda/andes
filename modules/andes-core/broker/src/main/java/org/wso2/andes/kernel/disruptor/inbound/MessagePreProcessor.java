@@ -66,12 +66,6 @@ public class MessagePreProcessor implements EventHandler<InboundEventContainer> 
             case TRANSACTION_COMMIT_EVENT:
                 preProcessTransaction(inboundEvent, sequence);
                 break;
-            case SAFE_ZONE_DECLARE_EVENT:
-                setSafeZoneLimit(inboundEvent, sequence);
-                break;
-            case PUBLISHER_RECOVERY_EVENT:
-                inboundEvent.setRecoveryEventMessageId(idGenerator.getNextId());
-                break;
             default:
                 if (log.isDebugEnabled()) {
                     log.debug("[ sequence " + sequence + "] Unhandled event " + inboundEvent.eventInfo());
@@ -100,19 +94,6 @@ public class MessagePreProcessor implements EventHandler<InboundEventContainer> 
         // actually written to DB
         eventContainer.getTransactionEvent().clearMessages();
         eventContainer.getTransactionEvent().addMessages(eventContainer.getMessageList());
-    }
-
-    /**
-     * Calculate the current safe zone for this node (using the last generated message ID)
-     * @param event event
-     * @param sequence position of the event at the event ring buffer
-     */
-    private void setSafeZoneLimit(InboundEventContainer event, long sequence) {
-        long safeZoneLimit = idGenerator.getNextId();
-        event.setSafeZoneLimit(safeZoneLimit);
-        if(log.isDebugEnabled()){
-            log.debug("[ Sequence " + sequence + " ] Pre processing message. Setting the Safe Zone " + safeZoneLimit);
-        }
     }
 
     /**

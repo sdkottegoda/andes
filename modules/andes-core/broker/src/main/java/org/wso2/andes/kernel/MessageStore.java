@@ -21,8 +21,6 @@ package org.wso2.andes.kernel;
 import com.gs.collections.impl.list.mutable.primitive.LongArrayList;
 import com.gs.collections.impl.map.mutable.primitive.LongObjectHashMap;
 import org.wso2.andes.configuration.util.ConfigurationProperties;
-import org.wso2.andes.kernel.slot.Slot;
-import org.wso2.andes.kernel.slot.RecoverySlotCreator;
 import org.wso2.andes.store.HealthAwareStore;
 
 import java.util.List;
@@ -131,12 +129,12 @@ public interface MessageStore extends HealthAwareStore {
      *
      * @param storageQueueName name of the queue messages are stored
      * @param firstMsgId       first id of the range
-     * @param lastMsgID        last id of the range
+     * @param countToRead        last id of the range
      * @return list of metadata
      * @throws AndesException
      */
-    List<DeliverableAndesMetadata> getMetadataList(Slot slot, final String storageQueueName, long firstMsgId,
-            long lastMsgID) throws AndesException;
+    List<DeliverableAndesMetadata> getMetadataList(final String storageQueueName, long firstMsgId,
+                                                   int countToRead) throws AndesException;
 
     /**
      * Get number of messages in the queue within the message id range
@@ -161,19 +159,6 @@ public interface MessageStore extends HealthAwareStore {
      */
     List<AndesMessageMetadata> getNextNMessageMetadataFromQueue(final String storageQueueName, long firstMsgId,
             int count) throws AndesException;
-
-    /**
-     * Recover slots for given queue. Will update slot message ids during startup.
-     *
-     * @param storageQueueName storage queue name
-     * @param firstMsgId first message id
-     * @param messageLimitPerSlot slot size
-     * @param callBack callBack for slot creator
-     * @return total number of recovered message count
-     * @throws AndesException
-     */
-    int recoverSlotsForQueue(final String storageQueueName, long firstMsgId, int messageLimitPerSlot,
-                             RecoverySlotCreator.CallBack callBack) throws AndesException;
 
     /**
      * Retrieve a metadata list from dead letter channel for a specific queue specifying a starting message id and a

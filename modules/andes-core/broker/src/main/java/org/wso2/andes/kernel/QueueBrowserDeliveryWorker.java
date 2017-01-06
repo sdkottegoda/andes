@@ -106,15 +106,13 @@ public class QueueBrowserDeliveryWorker {
      */
     private List<QueueEntry> getSortedMessages() throws AndesException {
 
+        //TODO: we are reading all messages at once to memory. Not good.
         String queueName = queue.getResourceName();
-        long lastAssignedSlotMessageId = MessagingEngine.getInstance().getLastAssignedSlotMessageId(queueName);
-        long messageIdDifference = 1024 * 256 * 5000;
-        long lastReadMessageId = lastAssignedSlotMessageId - messageIdDifference;
         int countOfQueue = (int) MessagingEngine.getInstance().getMessageCountOfQueue(queueName);
 
-        List<AndesMessageMetadata> queueMessageMetaData = new ArrayList<AndesMessageMetadata>();
+        List<AndesMessageMetadata> queueMessageMetaData = new ArrayList<>();
         List<AndesMessageMetadata> currentlyReadMessageMetaData = MessagingEngine.getInstance()
-                .getNextNMessageMetadataFromQueue(queueName, lastReadMessageId, countOfQueue);
+                .getNextNMessageMetadataFromQueue(queueName, 0 , countOfQueue);
 
         queueMessageMetaData.addAll(currentlyReadMessageMetaData);
 
@@ -122,7 +120,7 @@ public class QueueBrowserDeliveryWorker {
         Collections.sort(queueMessageMetaData, orderComparator);
         //todo: hasitha - what abt setting client identifier (it is skipped)?
         List<AMQMessage>  AMQMessages  =  AMQPUtils.getEntryAMQMessageListFromAndesMetaDataList(queueMessageMetaData);
-        List<QueueEntry> queueEntries = new ArrayList<QueueEntry>();
+        List<QueueEntry> queueEntries = new ArrayList<>();
         for(AMQMessage message : AMQMessages) {
             queueEntries.add(AMQPUtils.convertAMQMessageToQueueEntry(message, queue));
         }

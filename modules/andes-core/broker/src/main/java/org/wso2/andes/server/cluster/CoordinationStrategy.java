@@ -32,15 +32,6 @@ interface CoordinationStrategy {
      */
     boolean isCoordinator();
 
-
-    /**
-     * Return the socket address of the coordinator Node. This socket address can be used to communicate with the
-     * coordinator node using thrift.
-     *
-     * @return socket address of the coordinator thrift server if present, null otherwise
-     */
-    InetSocketAddress getThriftAddressOfCoordinator();
-
     /**
      * Return all ids of the connected nodes.
      *

@@ -122,4 +122,14 @@ public final class CoordinationConstants {
      * Name of the distributed map to store coordinator node's host address and port
      */
     public static String COORDINATOR_NODE_DETAILS_MAP_NAME = "coordinatorNodeDetailsMap";
+
+    /**
+     * Port of the coordinator server in a cluster
+     */
+    public static String CLUSTER_COORDINATOR_SERVER_IP = "clusterCoordinatorServerIP";
+
+    /**
+     * IP of the coordinator server in a cluster
+     */
+    public static String CLUSTER_COORDINATOR_SERVER_PORT = "clusterCoordinatorServerPort";
 }

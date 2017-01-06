@@ -177,20 +177,6 @@ public class Andes {
     }
 
     /**
-     * Start the safe zone calculation worker. The safe zone is used to decide if a slot can be safely deleted,
-     * assuming all messages in the slot range has been delivered.
-     */
-    public void startSafeZoneAnalysisWorker() {
-        SafeZoneUpdateEventTriggeringTask safeZoneUpdateTask = new SafeZoneUpdateEventTriggeringTask(
-                inboundEventManager);
-
-        log.info("Starting Safe Zone Calculator for slots.");
-        safeZoneUpdateScheduler
-                .scheduleAtFixedRate(safeZoneUpdateTask, 5, safeZoneUpdateTriggerInterval, TimeUnit.MILLISECONDS);
-
-    }
-
-    /**
      * When a message is received from a transport it should be converted to an AndesMessage and handed over to Andes
      * for delivery through this method.
      *
@@ -650,16 +636,6 @@ public class Andes {
     }
 
     /**
-     * Return last assigned message id of slot for given queue.
-     *
-     * @param queueName name of destination queue
-     * @return last assign message id
-     */
-    public long getLastAssignedSlotMessageId(String queueName) throws AndesException {
-        return MessagingEngine.getInstance().getLastAssignedSlotMessageId(queueName);
-    }
-
-    /**
      * Generate a new message ID. The return id will be always unique
      * even for different message broker nodes
      *
@@ -784,14 +760,5 @@ public class Andes {
     public AndesContent getRetainedMessageContent(AndesMessageMetadata metadata) throws AndesException {
         return MessagingEngine.getInstance().getRetainedMessageContent(metadata);
     }
-
-    /**
-     * On a member left event trigger recovery event. This will trigger a mock submit slot event to coordinator for all
-     * the queues and topics. This is to avoid any lost submit slot events from left member node
-     */
-    public void triggerRecoveryEvent() {
-        inboundEventManager.publishRecoveryEvent();
-    }
-
 }
 

@@ -19,14 +19,12 @@ package org.wso2.andes.kernel;
 import com.google.common.util.concurrent.SettableFuture;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.wso2.andes.kernel.slot.AbstractSlotManager;
-import org.wso2.andes.kernel.slot.SlotManagerClusterMode;
-import org.wso2.andes.kernel.slot.SlotManagerStandalone;
 import org.wso2.andes.store.FailureObservingStoreManager;
 import org.wso2.andes.store.HealthAwareStore;
 import org.wso2.andes.store.StoreHealthListener;
 import org.wso2.andes.tools.utils.MessageTracer;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -58,11 +56,6 @@ public class PeriodicExpiryMessageDeletionTask implements Runnable, StoreHealthL
     private AndesContextStore andesContextStore = AndesContext.getInstance().getAndesContextStore();
 
     /**
-     * Holds the slot manager based on broker running mode.
-     */
-    private AbstractSlotManager abstractSlotManagerSlotManager;
-
-    /**
      * Indicate the cluster mode is enabled or not.
      */
     protected boolean isClusteringEnabled;
@@ -74,13 +67,6 @@ public class PeriodicExpiryMessageDeletionTask implements Runnable, StoreHealthL
         FailureObservingStoreManager.registerStoreHealthListener(this);
 
         isClusteringEnabled = AndesContext.getInstance().isClusteringEnabled();
-        // Set the appropriate slot manager
-        if (isClusteringEnabled) {
-            this.abstractSlotManagerSlotManager = SlotManagerClusterMode.getInstance();
-        } else {
-            this.abstractSlotManagerSlotManager = SlotManagerStandalone.getInstance();
-        }
-
     }
 
     /**
@@ -94,43 +80,37 @@ public class PeriodicExpiryMessageDeletionTask implements Runnable, StoreHealthL
                 //First delete the expired messages from DLC
                 deleteExpiredMessagesFromDLC();
 
-                Set<String> queues = abstractSlotManagerSlotManager.getAllQueues();
-                for (String queueName : queues) {
-                    long currentDeletionRangeLowerBoundId = abstractSlotManagerSlotManager
-                            .getSafeZoneLowerBoundId(queueName);
-                    // Get expired messages for that queue in the range of message ID starting from lower bound ID.
-                    // Lower bound id -1 represents that there is no valid region to perform the delete
-                    if (currentDeletionRangeLowerBoundId != -1) {
-                        List<Long> expiredMessages = MessagingEngine.getInstance()
-                                .getExpiredMessages(currentDeletionRangeLowerBoundId, queueName);
-                        // Checks for the message store availability if its not available
-                        // Deletion task needs to await until message store becomes available
-                        if (null != messageStoresUnavailable) {
-                            log.info("Message store has become unavailable therefore expiry message deletion task "
-                                    + "waiting until store becomes available");
-                            //act as a barrier
-                            messageStoresUnavailable.get();
-                            log.info("Message store became available. Resuming expiry message deletion task");
-                            messageStoresUnavailable = null; // we are passing the blockade
-                            // (therefore clear the it).
-                        }
-                        if ((null != expiredMessages) && (!expiredMessages.isEmpty())) {
-                            //Tracing message activity
-                            if (MessageTracer.isEnabled()) {
-                                for (Long messageId : expiredMessages) {
-                                    MessageTracer.trace(messageId, "", MessageTracer
-                                            .EXPIRED_MESSAGE_DETECTED_FROM_DATABASE);
-                                }
-                            }
-                            //delete message metadata, content from the meta data table, content table and expiry table
-                            MessagingEngine.getInstance().deleteMessagesById(expiredMessages);
-                            if (log.isDebugEnabled()) {
-                                log.debug("Expired message count for queue : " + queueName + "is" + expiredMessages
-                                        .size());
+                //TODO: get all queues in system and delete messages only not being delivered currently
+                List<String> queues = AndesContext.getInstance().getStorageQueueRegistry().getAllStorageQueueNames();
+                long currentDeletionRangeLowerBoundId = 0;
+                for (String queue : queues) {
+                    List<Long> expiredMessages = MessagingEngine.getInstance()
+                            .getExpiredMessages(currentDeletionRangeLowerBoundId, queue);
+                    // Checks for the message store availability if its not available
+                    // Deletion task needs to await until message store becomes available
+                    if (null != messageStoresUnavailable) {
+                        log.info("Message store has become unavailable therefore expiry message deletion task "
+                                + "waiting until store becomes available");
+                        //act as a barrier
+                        messageStoresUnavailable.get();
+                        log.info("Message store became available. Resuming expiry message deletion task");
+                        messageStoresUnavailable = null; // we are passing the blockade
+                        // (therefore clear the it).
+                    }
+                    if ((null != expiredMessages) && (!expiredMessages.isEmpty())) {
+                        //Tracing message activity
+                        if (MessageTracer.isEnabled()) {
+                            for (Long messageId : expiredMessages) {
+                                MessageTracer.trace(messageId, "", MessageTracer
+                                        .EXPIRED_MESSAGE_DETECTED_FROM_DATABASE);
                             }
                         }
-                        //clear the safe deletion state in the slot manager after deletion completes
-                        abstractSlotManagerSlotManager.clearDeletionTaskState();
+                        //delete message metadata, content from the meta data table, content table and expiry table
+                        MessagingEngine.getInstance().deleteMessagesById(expiredMessages);
+                        if (log.isDebugEnabled()) {
+                            log.debug("Expired message count for queue : " + queue + "is" + expiredMessages
+                                    .size());
+                        }
                     }
                 }
             }

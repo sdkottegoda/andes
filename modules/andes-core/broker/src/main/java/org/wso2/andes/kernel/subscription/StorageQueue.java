@@ -22,13 +22,11 @@ import org.wso2.andes.amqp.AMQPUtils;
 import org.wso2.andes.configuration.AndesConfigurationManager;
 import org.wso2.andes.configuration.enums.AndesConfiguration;
 import org.wso2.andes.kernel.AndesContext;
-import org.wso2.andes.kernel.AndesContextInformationManager;
 import org.wso2.andes.kernel.AndesException;
 import org.wso2.andes.kernel.DeliverableAndesMetadata;
 import org.wso2.andes.kernel.MessageHandler;
 import org.wso2.andes.kernel.SubscriptionAlreadyExistsException;
 import org.wso2.andes.kernel.router.AndesMessageRouter;
-import org.wso2.andes.kernel.slot.Slot;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -306,8 +304,6 @@ public class StorageQueue {
         boundedSubscriptions.remove(subscription);
         if (boundedSubscriptions.isEmpty()) {
             if (isDurable) {
-                //return slots back to coordinator
-                messageHandler.releaseAllSlots();
                 messageHandler.clearReadButUndeliveredMessages();
             }
 
@@ -337,11 +333,11 @@ public class StorageQueue {
 
     /**
      * Read messages from persistent storage for delivery
-     *
-     * @param messageSlot message slot whose messages should be read
+     * @return number of messages read from store
+     * @throws AndesException on DB issue or issue when reading messages
      */
-    public void loadMessagesForDelivery(Slot messageSlot) throws AndesException {
-        messageHandler.bufferMessages(messageSlot);
+    public int loadMessagesForDelivery() throws AndesException {
+        return messageHandler.bufferMessages();
     }
 
     /**
@@ -362,17 +358,6 @@ public class StorageQueue {
      */
     public Collection<DeliverableAndesMetadata> getMessagesForDelivery() {
         return messageHandler.getReadButUndeliveredMessages();
-    }
-
-    //TODO: is there a workaround to remove this call?
-
-    /**
-     * Delete a specific message slot that is read by the queue
-     *
-     * @param slotToDelete slot to delete
-     */
-    public void deleteSlot(Slot slotToDelete) {
-        messageHandler.deleteSlot(slotToDelete);
     }
 
     /**

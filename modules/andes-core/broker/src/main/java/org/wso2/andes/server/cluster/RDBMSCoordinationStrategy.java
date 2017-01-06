@@ -226,22 +226,6 @@ class RDBMSCoordinationStrategy implements CoordinationStrategy, RDBMSMembership
      * {@inheritDoc}
      */
     @Override
-    public InetSocketAddress getThriftAddressOfCoordinator() {
-        InetSocketAddress coordinatorThriftAddress = null;
-
-        try {
-            coordinatorThriftAddress = contextStore.getCoordinatorThriftAddress();
-        } catch (AndesException e) {
-            logger.error("Error occurred while reading coordinator thrift address", e);
-        }
-
-        return coordinatorThriftAddress;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public List<String> getAllNodeIdentifiers() throws AndesException {
         List<NodeHeartBeatData> allNodeInformation = contextStore.getAllHeartBeatData();
 

@@ -172,14 +172,6 @@ public class CoordinationConfigurableClusterAgent implements ClusterAgent {
      * {@inheritDoc}
      */
     @Override
-    public InetSocketAddress getThriftAddressOfCoordinator() {
-        return coordinationStrategy.getThriftAddressOfCoordinator();
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public void start(ClusterManager manager) throws AndesException{
         this.manager = manager;
 

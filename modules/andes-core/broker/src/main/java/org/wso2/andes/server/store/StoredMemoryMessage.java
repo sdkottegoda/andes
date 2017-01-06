@@ -19,7 +19,6 @@
 package org.wso2.andes.server.store;
 
 import org.wso2.andes.kernel.AndesException;
-import org.wso2.andes.kernel.slot.Slot;
 
 import java.nio.ByteBuffer;
 
@@ -86,16 +85,5 @@ public class StoredMemoryMessage implements StoredMessage
 
     public void setExchange(String exchange) {
         //To change body of implemented methods use File | Settings | File Templates.
-    }
-
-    @Override
-    public Slot getSlot() {
-        return null;
-    }
-
-    @Override
-    public void setSlot(Slot slot) {
-        //this method will not be used by instances of this class. This is only to set slot
-        // in  AMQP messages
     }
 }

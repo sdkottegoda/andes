@@ -19,8 +19,6 @@
 package org.wso2.andes.server.store;
 
 import org.wso2.andes.kernel.AndesException;
-import org.wso2.andes.kernel.slot.Slot;
-
 import java.nio.ByteBuffer;
 
 /**
@@ -75,15 +73,5 @@ public class ForwardingStoredMessage<E extends StorableMessageMetaData> implemen
     @Override
     public void setExchange(String exchange) {
         s.setExchange(exchange);
-    }
-
-    @Override
-    public Slot getSlot() {
-        return s.getSlot();
-    }
-
-    @Override
-    public void setSlot(Slot slot) {
-        s.setSlot(slot);
     }
 }

@@ -30,8 +30,6 @@ import org.wso2.andes.kernel.AndesMessagePart;
 import org.wso2.andes.kernel.DeliverableAndesMetadata;
 import org.wso2.andes.kernel.DurableStoreConnection;
 import org.wso2.andes.kernel.MessageStore;
-import org.wso2.andes.kernel.slot.Slot;
-import org.wso2.andes.kernel.slot.RecoverySlotCreator;
 import org.wso2.andes.tools.utils.MessageTracer;
 
 import java.util.List;
@@ -216,10 +214,10 @@ public class FailureObservingMessageStore implements MessageStore {
      * {@inheritDoc}
      */
     @Override
-    public List<DeliverableAndesMetadata> getMetadataList(Slot slot, String storageQueueName, long firstMsgId,
-            long lastMsgID) throws AndesException {
+    public List<DeliverableAndesMetadata> getMetadataList(String storageQueueName, long firstMsgId,
+                                                          int countToRead) throws AndesException {
         try {
-            return wrappedInstance.getMetadataList(slot, storageQueueName, firstMsgId, lastMsgID);
+            return wrappedInstance.getMetadataList(storageQueueName, firstMsgId, countToRead);
         } catch (AndesStoreUnavailableException exception) {
             notifyFailures(exception);
             throw exception;
@@ -233,19 +231,6 @@ public class FailureObservingMessageStore implements MessageStore {
             throws AndesException {
         try {
             return wrappedInstance.getMessageCountForQueueInRange(storageQueueName, firstMessageId, lastMessageId);
-        } catch (AndesStoreUnavailableException exception) {
-            notifyFailures(exception);
-            throw exception;
-        }
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public int recoverSlotsForQueue(final String storageQueueName, long firstMsgId, int count,
-                                    RecoverySlotCreator.CallBack callBack) throws AndesException {
-        try {
-            return wrappedInstance.recoverSlotsForQueue(storageQueueName,firstMsgId,count,callBack);
         } catch (AndesStoreUnavailableException exception) {
             notifyFailures(exception);
             throw exception;

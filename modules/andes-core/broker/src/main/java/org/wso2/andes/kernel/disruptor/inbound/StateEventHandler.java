@@ -25,7 +25,6 @@ import org.wso2.andes.kernel.AndesException;
 import org.wso2.andes.kernel.AndesMessage;
 import org.wso2.andes.kernel.DeliverableAndesMetadata;
 import org.wso2.andes.kernel.MessageStatus;
-import org.wso2.andes.kernel.slot.SlotMessageCounter;
 import org.wso2.andes.metrics.MetricsConstants;
 import org.wso2.andes.tools.utils.MessageTracer;
 import org.wso2.carbon.metrics.manager.Level;
@@ -60,9 +59,6 @@ public class StateEventHandler implements EventHandler<InboundEventContainer> {
                 case ACKNOWLEDGEMENT_EVENT:
                     updateTrackerWithAck(event);
                     break;
-                case SAFE_ZONE_DECLARE_EVENT:
-                    updateSlotDeleteSafeZone(event);
-                    break;
                 default:
                     event.updateState();
                     break;
@@ -82,18 +78,8 @@ public class StateEventHandler implements EventHandler<InboundEventContainer> {
         //we need both conditions to prevent multiple events seeing that message is deleted
         if (acknowledgedMessage.getLatestState().equals(MessageStatus.DELETED)
                 && event.ackData.isBaringMessageRemovable()) {
-            acknowledgedMessage.getSlot().decrementPendingMessageCount();
+            //TODO:message is ACKED here
         }
-    }
-
-    /**
-     * Communicate this node's safe zone to the coordinator for evaluation.
-     * @param event event
-     */
-    private void updateSlotDeleteSafeZone(InboundEventContainer event) {
-
-        long currentSafeZoneVal = event.getSafeZoneLimit();
-        SlotMessageCounter.getInstance().updateSafeZoneForNode(currentSafeZoneVal);
     }
 
     /**
@@ -104,9 +90,6 @@ public class StateEventHandler implements EventHandler<InboundEventContainer> {
     public void updateSlotsAndQueueCounts(InboundEventContainer eventContainer) {
 
         List<AndesMessage> messageList = eventContainer.getMessageList();
-        // update last message ID in slot message counter. When the slot is filled the last message
-        // ID of the slot will be submitted to the slot manager by SlotMessageCounter
-        SlotMessageCounter.getInstance().recordMetadataCountInSlot(messageList);
 
         for (AndesMessage message : messageList) {
             //Tracing Message

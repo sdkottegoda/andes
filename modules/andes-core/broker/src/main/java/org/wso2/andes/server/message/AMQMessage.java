@@ -23,11 +23,9 @@ import org.wso2.andes.framing.ContentHeaderBody;
 import org.wso2.andes.framing.abstraction.MessagePublishInfo;
 import org.wso2.andes.kernel.ProtocolMessage;
 import org.wso2.andes.server.AMQChannel;
-import org.wso2.andes.kernel.slot.Slot;
 import org.wso2.andes.server.store.StoredMessage;
 import org.wso2.andes.configuration.qpid.SessionConfig;
 import org.wso2.andes.server.queue.AMQQueue;
-
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.lang.ref.WeakReference;
@@ -128,15 +126,11 @@ public class AMQMessage implements ServerMessage
     }
 
 
-
     public Long getMessageId()
     {
         return _handle.getMessageNumber();
     }
 
-    public Slot getSlot(){
-        return _handle.getSlot();
-    }
 
     /**
      * Creates a long-lived reference to this message, and increments the count of such references, as an atomic

@@ -23,15 +23,6 @@ import com.gs.collections.impl.map.mutable.primitive.LongObjectHashMap;
 import org.apache.log4j.Logger;
 import org.wso2.andes.configuration.AndesConfigurationManager;
 import org.wso2.andes.configuration.enums.AndesConfiguration;
-import org.wso2.andes.kernel.slot.Slot;
-import org.wso2.andes.kernel.slot.SlotCoordinator;
-import org.wso2.andes.kernel.slot.SlotCoordinatorCluster;
-import org.wso2.andes.kernel.slot.SlotCoordinatorStandalone;
-import org.wso2.andes.kernel.slot.SlotDeliveryWorkerManager;
-import org.wso2.andes.kernel.slot.SlotManagerClusterMode;
-import org.wso2.andes.kernel.slot.SlotManagerStandalone;
-import org.wso2.andes.kernel.slot.SlotMessageCounter;
-import org.wso2.andes.server.ClusterResourceHolder;
 import org.wso2.andes.server.cluster.coordination.MessageIdGenerator;
 import org.wso2.andes.server.cluster.coordination.TimeStampBasedMessageIdGenerator;
 import org.wso2.andes.server.queue.DLCQueueUtils;
@@ -67,12 +58,6 @@ public class MessagingEngine {
      * Reference to MessageStore. This holds the messages received by andes
      */
     private MessageStore messageStore;
-
-
-    /**
-     * Slot coordinator who is responsible of coordinating with the SlotManager
-     */
-    private SlotCoordinator slotCoordinator;
 
     /**
      * Expiry manager which is responsible for update DLC info in db tables
@@ -115,16 +100,6 @@ public class MessagingEngine {
 
         this.messageStore = messageStore;
         this.messageExpiryManager = messageExpiryManager;
-
-
-        /*
-        Initialize the SlotCoordinator
-         */
-        if (AndesContext.getInstance().isClusteringEnabled()) {
-            slotCoordinator = new SlotCoordinatorCluster();
-        } else {
-            slotCoordinator = new SlotCoordinatorStandalone();
-        }
     }
 
     /**
@@ -190,7 +165,6 @@ public class MessagingEngine {
         // Increment count by 1 in DLC and decrement by 1 in original queue
 
         messageToRemove.markAsDLCMessage();
-        messageToRemove.getSlot().decrementPendingMessageCount();
 
         //Tracing message activity
         MessageTracer.trace(messageToRemove.getMessageID(), destinationQueueName, MessageTracer.MOVED_TO_DLC);
@@ -300,7 +274,6 @@ public class MessagingEngine {
         //mark the messages as DLC messages
         for (DeliverableAndesMetadata message : messagesToMove) {
             message.markAsDLCMessage();
-            message.getSlot().decrementPendingMessageCount();
         }
     }
 
@@ -406,20 +379,6 @@ public class MessagingEngine {
      */
     public long getMessageCountInDLC(String dlcQueueName) throws AndesException {
         return messageStore.getMessageCountForDLCQueue(dlcQueueName);
-    }
-
-    /**
-     * Get message metadata from queue between two message id values
-     *
-     * @param queueName  queue name
-     * @param firstMsgId id of the starting id
-     * @param lastMsgID  id of the last id
-     * @return List of message metadata
-     * @throws AndesException
-     */
-    public List<DeliverableAndesMetadata> getMetaDataList(final Slot slot, final String queueName, long firstMsgId,
-            long lastMsgID) throws AndesException {
-        return messageStore.getMetadataList(slot, queueName, firstMsgId, lastMsgID);
     }
 
     /**
@@ -551,9 +510,8 @@ public class MessagingEngine {
     public void stopMessageDelivery() {
 
         log.info("Stopping SlotDelivery Worker.");
-        //Stop all slotDeliveryWorkers
+        //Stop all messageDeliveryWorkers
         SlotDeliveryWorkerManager.getInstance().stopMessageDelivery();
-        SlotMessageCounter.getInstance().stop();
         //Stop delivery disruptor
         MessageFlusher.getInstance().stopMessageFlusher();
     }
@@ -572,10 +530,6 @@ public class MessagingEngine {
 
     public void completePendingStoreOperations() {
         messageStore.close();
-    }
-
-    public SlotCoordinator getSlotCoordinator() {
-        return slotCoordinator;
     }
 
     /**
@@ -624,28 +578,5 @@ public class MessagingEngine {
         Map<Integer, AndesMessagePart> retainedContentParts = messageStore.getRetainedContentParts(messageID);
 
         return new RetainedContent(retainedContentParts, contentSize, messageID);
-    }
-
-    /**
-     * Return last assign message id of slot for given queue
-     *
-     * @param queueName name of destination queue
-     * @return last assign message id
-     */
-    public long getLastAssignedSlotMessageId(String queueName) throws AndesException {
-        long lastMessageId = 0;
-        long messageIdDifference = 1024 * 256 * 5000;
-        Long lastAssignedSlotMessageId;
-        if (ClusterResourceHolder.getInstance().getClusterManager().isClusteringEnabled()) {
-            lastAssignedSlotMessageId = SlotManagerClusterMode.getInstance()
-                    .getLastAssignedSlotMessageIdInClusterMode(queueName);
-        } else {
-            lastAssignedSlotMessageId = SlotManagerStandalone.getInstance()
-                    .getLastAssignedSlotMessageIdInStandaloneMode(queueName);
-        }
-        if (lastAssignedSlotMessageId != null) {
-            lastMessageId = lastAssignedSlotMessageId - messageIdDifference;
-        }
-        return lastMessageId;
     }
 }
