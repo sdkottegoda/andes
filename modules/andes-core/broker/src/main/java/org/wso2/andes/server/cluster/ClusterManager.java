@@ -186,6 +186,7 @@ public class ClusterManager implements StoreHealthListener{
             //update node information in durable store
             List<String> nodeList = new ArrayList<>(andesContextStore.getAllStoredNodeData().keySet());
 
+            //TODO change this if we are planning on changing the clustering story with the new architecture
             for (String node : nodeList) {
                 andesContextStore.removeNodeData(node);
             }
@@ -196,7 +197,7 @@ public class ClusterManager implements StoreHealthListener{
             Integer port = AndesConfigurationManager.readValue(AndesConfiguration.
                     TRANSPORTS_AMQP_DEFAULT_CONNECTION_PORT);
 
-            andesContextStore.storeNodeDetails(nodeId, InetAddress.getLocalHost().getHostAddress() + "|" + port);
+            andesContextStore.storeNodeDetails(nodeId, InetAddress.getLocalHost().getHostAddress() + ":" + port);
 
         } catch (UnknownHostException e) {
             throw new AndesException("Unable to get the localhost address.", e);
@@ -230,7 +231,7 @@ public class ClusterManager implements StoreHealthListener{
             Integer port = AndesConfigurationManager.readValue(AndesConfiguration.
                     TRANSPORTS_AMQP_DEFAULT_CONNECTION_PORT);
 
-            andesContextStore.storeNodeDetails(nodeId, InetAddress.getLocalHost().getHostAddress() + "|" + port);
+            andesContextStore.storeNodeDetails(nodeId, InetAddress.getLocalHost().getHostAddress() + ":" + port);
 
         } catch (UnknownHostException e) {
             throw new AndesException("Unable to get the localhost address.", e);

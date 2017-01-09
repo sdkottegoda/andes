@@ -102,7 +102,7 @@ public class RDBMSConstants {
     protected static final String BINDINGS_TABLE = "MB_BINDING";
     protected static final String QUEUE_INFO_TABLE = "MB_QUEUE";
     protected static final String QUEUE_COUNTER_TABLE = "MB_QUEUE_COUNTER";
-    protected static final String QUEUE_MASTER_TABLE = "QUEUE_MASTER";
+    protected static final String QUEUE_MASTER_TABLE = "MB_QUEUE_MASTER";
     // Slot related tables
     protected static final String SLOT_TABLE = "MB_SLOT";
     protected static final String SLOT_MESSAGE_ID_TABLE = "MB_SLOT_MESSAGE_ID";
@@ -410,7 +410,7 @@ public class RDBMSConstants {
                     + " FROM " + NODE_INFO_TABLE + " INNER JOIN "
                     + QUEUE_MASTER_TABLE + " ON " + NODE_INFO_TABLE
                     + "." + NODE_ID + "=" + QUEUE_MASTER_TABLE + "." + NODE_ID
-                    + "WHERE" + QUEUE_NAME + "=?";
+                    + " WHERE " + QUEUE_NAME + "=?";
 
     protected static final String PS_SELECT_OWNED_QUEUES_BY_NODE =
             "SELECT " + QUEUE_NAME
