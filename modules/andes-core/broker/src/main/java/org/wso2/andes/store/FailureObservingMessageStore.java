@@ -29,6 +29,7 @@ import org.wso2.andes.kernel.AndesMessageMetadata;
 import org.wso2.andes.kernel.AndesMessagePart;
 import org.wso2.andes.kernel.DeliverableAndesMetadata;
 import org.wso2.andes.kernel.DurableStoreConnection;
+import org.wso2.andes.kernel.MessageBucket;
 import org.wso2.andes.kernel.MessageStore;
 import org.wso2.andes.tools.utils.MessageTracer;
 
@@ -214,10 +215,10 @@ public class FailureObservingMessageStore implements MessageStore {
      * {@inheritDoc}
      */
     @Override
-    public List<DeliverableAndesMetadata> getMetadataList(String storageQueueName, long firstMsgId,
+    public void getMetadataList(MessageBucket messageBucket, long firstMsgId,
                                                           int countToRead) throws AndesException {
         try {
-            return wrappedInstance.getMetadataList(storageQueueName, firstMsgId, countToRead);
+            wrappedInstance.getMetadataList(messageBucket, firstMsgId, countToRead);
         } catch (AndesStoreUnavailableException exception) {
             notifyFailures(exception);
             throw exception;

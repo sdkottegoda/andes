@@ -21,6 +21,8 @@ import org.wso2.andes.configuration.AndesConfigurationManager;
 import org.wso2.andes.configuration.enums.AndesConfiguration;
 import org.wso2.andes.kernel.subscription.StorageQueue;
 import org.wso2.andes.server.queue.DLCQueueUtils;
+import org.wso2.andes.store.cache.AndesMessageCache;
+import org.wso2.andes.store.cache.ExtendedMessageCacheImpl;
 import org.wso2.andes.tools.utils.MessageTracer;
 
 import java.io.File;
@@ -49,9 +51,9 @@ public class MessageHandler {
     private SlotDeliveryWorkerManager messageDeliveryManager;
 
     /**
-     * Name of the queue to handle
+     * Queue to handle messages for
      */
-    private String queueName;
+    private StorageQueue queue;
 
     /**
      * Maximum number to retries retrieve metadata list for a given storage
@@ -65,6 +67,11 @@ public class MessageHandler {
      */
     private ConcurrentMap<Long, DeliverableAndesMetadata> readButUndeliveredMessages = new
             ConcurrentSkipListMap<>();
+
+    /**
+     * Cache to keep message metadata
+     */
+    private AndesMessageCache metadataCache;
 
     /**
      * ID of the last message read from store for the queue handled.
@@ -88,8 +95,9 @@ public class MessageHandler {
      */
     private Integer maxNumberOfReadButUndeliveredMessages;
 
-    public MessageHandler(String queueName) {
-        this.queueName = queueName;
+    public MessageHandler(StorageQueue queue) {
+        this.queue = queue;
+        this.metadataCache = new ExtendedMessageCacheImpl(queue);
         this.maxNumberOfReadButUndeliveredMessages = AndesConfigurationManager.
                 readValue(AndesConfiguration.PERFORMANCE_TUNING_DELIVERY_MAX_READ_BUT_UNDELIVERED_MESSAGES);
         this.messageCountToRead = AndesConfigurationManager.
@@ -134,50 +142,50 @@ public class MessageHandler {
      */
     public int bufferMessages() throws AndesException {
 
+        MessageBucket messageBucket = new MessageBucket(queue, readButUndeliveredMessages);
+
         long startMessageID = IdOfLastMessageRead + 1;
 
-        List<DeliverableAndesMetadata> messagesReadFromStore = readMessagesFromMessageStore(startMessageID,
-                messageCountToRead, queueName);
-
-        if(!messagesReadFromStore.isEmpty()) {
-            DeliverableAndesMetadata lastMessage = null;
-            for (DeliverableAndesMetadata message : messagesReadFromStore) {
-                bufferMessage(message);
-                lastMessage = message;
+        if(metadataCache.isOperational()) {
+            metadataCache.readMessagesFromCache(messageCountToRead, messageBucket);
+            if(messageBucket.numberOfMessagesRead() == 0) {
+                readMessagesFromMessageStore(startMessageID,
+                        messageCountToRead, messageBucket);
+                if(messageBucket.numberOfMessagesRead() > 0) {
+                    metadataCache.disable();        //messages left in DB. Disabling cache
+                }
             }
-            if (lastMessage != null) {
-                IdOfLastMessageRead = lastMessage.getMessageID();
-            }
+        } else {
+            readMessagesFromMessageStore(startMessageID,
+                    messageCountToRead, messageBucket);
         }
-        return messagesReadFromStore.size();
+        if (messageBucket.lastMessageRead() != null) {
+            IdOfLastMessageRead = messageBucket.lastMessageRead().getMessageID();
+        }
+        return messageBucket.numberOfMessagesRead();
     }
 
     /**
      * Read messages from persistent storage for delivery
      *
-     * @param startMessageID ID of message to start reading from
+     * @param startMessageID      ID of message to start reading from
      * @param numOfMessagesToLoad max number of messages to read
-     * @param storageQueueName queue name whose messages to be load to memory
+     * @param messageBucket       container to fill messages
      * @throws AndesException on DB issue or issue when reading messages
      */
-    private List<DeliverableAndesMetadata> readMessagesFromMessageStore(long startMessageID, int numOfMessagesToLoad,
-                                                                        String storageQueueName) throws AndesException {
-        List<DeliverableAndesMetadata> messagesRead;
+    private void readMessagesFromMessageStore(long startMessageID, int numOfMessagesToLoad,
+                                              MessageBucket messageBucket) throws AndesException {
         int numberOfRetries = 0;
         try {
 
             //Read messages in the slot
-            messagesRead = messageStore.getMetadataList(
-                    storageQueueName,
+            messageStore.getMetadataList(
+                    messageBucket,
                     startMessageID,
                     numOfMessagesToLoad);
 
             if (log.isDebugEnabled()) {
-                StringBuilder messageIDString = new StringBuilder();
-                for (DeliverableAndesMetadata metadata : messagesRead) {
-                    messageIDString.append(metadata.getMessageID()).append(" , ");
-                }
-                log.debug("Messages Read: " + messageIDString);
+                log.debug("Messages Read: " + messageBucket.messagesReadAsStringVal());
             }
 
         } catch (AndesException aex) {
@@ -192,13 +200,13 @@ public class MessageHandler {
                         + "]", numberOfRetries);
 
                 log.error(errorMsg, aex);
-                messagesRead = messageStore.getMetadataList(
-                        storageQueueName,
+                messageStore.getMetadataList(
+                        messageBucket,
                         startMessageID,
                         numOfMessagesToLoad);
             } else {
                 String errorMsg = String.format("error occurred retrieving metadata list for range"
-                        + ": %s, in final attempt = %d. " + "messages in this range is not read" ,
+                                + ": %s, in final attempt = %d. " + "messages in this range is not read",
                         "[" + startMessageID + ", " + numOfMessagesToLoad
                                 + "]", numberOfRetries);
 
@@ -209,10 +217,10 @@ public class MessageHandler {
 
         if (log.isDebugEnabled()) {
             log.debug("Number of messages read from DB in range " + "[" + startMessageID + ", " + numOfMessagesToLoad
-                    + "]"+ " is " + messagesRead.size() + " storage queue= " + storageQueueName);
+                    + "]" + " is " + messageBucket.numberOfMessagesRead() + " storage queue= "
+                    + messageBucket.getQueueName());
         }
 
-        return messagesRead;
     }
 
     /**
@@ -258,7 +266,13 @@ public class MessageHandler {
         lastPurgedTimestamp = System.currentTimeMillis();
         int messageCount = readButUndeliveredMessages.size();
         readButUndeliveredMessages.clear();
+        resetMessageReadingCurser();
         return messageCount;
+    }
+
+    private void resetMessageReadingCurser() {
+        //metadataCache.disable();
+        IdOfLastMessageRead = 0;
     }
 
     /**
@@ -273,18 +287,18 @@ public class MessageHandler {
             clearReadButUndeliveredMessages();
 
             int deletedMessageCount;
-            if (!(DLCQueueUtils.isDeadLetterQueue(queueName))) {
+            if (!(DLCQueueUtils.isDeadLetterQueue(queue.getName()))) {
                 // delete all messages for the queue
-                deletedMessageCount = messageStore.deleteAllMessageMetadata(queueName);
+                deletedMessageCount = messageStore.deleteAllMessageMetadata(queue.getName());
             } else {
                 //delete all the messages in dlc
-                deletedMessageCount = messageStore.clearDLCQueue(queueName);
+                deletedMessageCount = messageStore.clearDLCQueue(queue.getName());
             }
             return deletedMessageCount;
 
         } catch (AndesException e) {
             // This will be a store-specific error.
-            throw new AndesException("Error occurred when purging queue from store : " + queueName, e);
+            throw new AndesException("Error occurred when purging queue from store : " + queue, e);
         }
     }
 
@@ -296,10 +310,10 @@ public class MessageHandler {
      */
     public long getMessageCountForQueue() throws AndesException {
         long messageCount;
-        if (!DLCQueueUtils.isDeadLetterQueue(queueName)) {
-            messageCount = messageStore.getMessageCountForQueue(queueName);
+        if (!DLCQueueUtils.isDeadLetterQueue(queue.getName())) {
+            messageCount = messageStore.getMessageCountForQueue(queue.getName());
         } else {
-            messageCount = messageStore.getMessageCountForDLCQueue(queueName);
+            messageCount = messageStore.getMessageCountForDLCQueue(queue.getName());
         }
         return messageCount;
     }
@@ -315,4 +329,13 @@ public class MessageHandler {
         //TODO: do we want this now?
     }
 
+    /**
+     * Store incoming message to queue
+     *
+     * @param message message to store
+     * @throws AndesException in case of an exception at message store
+     */
+    public void storeMessage(AndesMessage message) throws AndesException{
+        metadataCache.addToCache(message);
+    }
 }

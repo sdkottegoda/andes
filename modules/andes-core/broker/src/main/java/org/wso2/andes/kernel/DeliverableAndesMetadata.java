@@ -61,15 +61,20 @@ public class DeliverableAndesMetadata extends AndesMessageMetadata {
      */
     private boolean isBeyondLastRollbackedMessage;
 
-    /**
-     * Indicate if the metadata should not be used.
-     */
-    private boolean stale;
-
     private static Log log = LogFactory.getLog(DeliverableAndesMetadata.class);
 
     public DeliverableAndesMetadata(long messageID, byte[] metadata, boolean parse) {
         super(messageID, metadata, parse);
+        init();
+    }
+
+    //TODO: we are parsing again. Need to create a DeliverableAndesMetadata wrapping up AndesMessageMetadata
+    public DeliverableAndesMetadata(AndesMessageMetadata andesMessageMetadata) {
+        super(andesMessageMetadata.messageID, andesMessageMetadata.metadata, true);
+        init();
+    }
+
+    private void init() {
         this.timeMessageIsRead = System.currentTimeMillis();
         this.channelDeliveryInfo = new ConcurrentHashMap<>();
         this.messageStatus = Collections.synchronizedList(new ArrayList<MessageStatus>());
@@ -333,28 +338,9 @@ public class DeliverableAndesMetadata extends AndesMessageMetadata {
      *
      * @return true if message is stale
      */
+    //TODO: do we need this method? Review and remove
     public boolean isStale() {
-        return stale;
-    }
-
-    public void markAsStale() {
-        stale = true;
-    }
-
-    /**
-     * Mark as slot removed message
-     */
-    public void markAsSlotRemoved() {
-        addMessageStatus(MessageStatus.SLOT_REMOVED);
-    }
-
-    /**
-     * Due to last subscription close of local node
-     * slots can get returned to slot coordinator. There we mark
-     * the messages in that slot as slot returned
-     */
-    public void markAsSlotReturned() {
-        addMessageStatus(MessageStatus.SLOT_RETURNED);
+        return false;
     }
 
     /**

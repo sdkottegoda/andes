@@ -127,14 +127,13 @@ public interface MessageStore extends HealthAwareStore {
     /**
      * read a metadata list from store specifying a message id range
      *
-     * @param storageQueueName name of the queue messages are stored
-     * @param firstMsgId       first id of the range
-     * @param countToRead        last id of the range
-     * @return list of metadata
+     * @param messageBucket container to which messages are buffered
+     * @param firstMsgId    first id of the range
+     * @param countToRead   how many messages to be read from store
      * @throws AndesException
      */
-    List<DeliverableAndesMetadata> getMetadataList(final String storageQueueName, long firstMsgId,
-                                                   int countToRead) throws AndesException;
+    void getMetadataList(final MessageBucket messageBucket, long firstMsgId,
+                         int countToRead) throws AndesException;
 
     /**
      * Get number of messages in the queue within the message id range

@@ -24,15 +24,17 @@ import com.google.common.cache.Weigher;
 import com.gs.collections.api.iterator.MutableLongIterator;
 import com.gs.collections.impl.list.mutable.primitive.LongArrayList;
 import com.gs.collections.impl.map.mutable.primitive.LongObjectHashMap;
+import org.apache.commons.lang.NotImplementedException;
 import org.apache.log4j.Logger;
 import org.wso2.andes.configuration.AndesConfigurationManager;
 import org.wso2.andes.configuration.enums.AndesConfiguration;
 import org.wso2.andes.kernel.AndesMessage;
 import org.wso2.andes.kernel.AndesMessagePart;
+import org.wso2.andes.kernel.DeliverableAndesMetadata;
+import org.wso2.andes.kernel.MessageBucket;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -58,7 +60,7 @@ public class GuavaBasedMessageCacheImpl implements AndesMessageCache {
      * Size of the cache is determined via configuration. For example cache can
      * keep 1GB 'worth of' message payloads (and its meta data) in the memory.
      */
-    private final Cache<Long, AndesMessage> cache;
+    final Cache<Long, AndesMessage> cache;
 
     /**
      * Used to schedule a cache clean up task and print cache statistics ( used for debugging perposes)
@@ -209,6 +211,36 @@ public class GuavaBasedMessageCacheImpl implements AndesMessageCache {
             part = getMessageFromCache(messageId).getContentChunkList().get(offsetValue / DEFAULT_CONTENT_CHUNK_SIZE);
         }
         return part;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isOperational() {
+        return true;
+    }
+
+    @Override
+    public void enable() {
+        //do nothing. Always enabled.
+    }
+
+    @Override
+    public void disable() {
+        throw new UnsupportedOperationException("GuavaBasedMessageCacheImpl cannot be disabled");
+    }
+
+    /**
+     * This method is not implemented for GuavaBasedMessageCacheImpl
+     *
+     * @param messageCountToRead number of messages to read
+     * @param messageBucket
+     * @return a list of deliverable message metadata list
+     */
+    @Override
+    public void readMessagesFromCache(int messageCountToRead, MessageBucket messageBucket) {
+        throw new NotImplementedException("GuavaBasedMessageCacheImpl does not implement readMessagesFromCache()");
     }
 
 }

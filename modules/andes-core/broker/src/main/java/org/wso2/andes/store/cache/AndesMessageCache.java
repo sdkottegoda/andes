@@ -22,6 +22,8 @@ import com.gs.collections.impl.list.mutable.primitive.LongArrayList;
 import com.gs.collections.impl.map.mutable.primitive.LongObjectHashMap;
 import org.wso2.andes.kernel.AndesMessage;
 import org.wso2.andes.kernel.AndesMessagePart;
+import org.wso2.andes.kernel.DeliverableAndesMetadata;
+import org.wso2.andes.kernel.MessageBucket;
 
 import java.util.List;
 
@@ -51,7 +53,7 @@ public interface AndesMessageCache {
     /**
      * Removes a message with a given id from the cache
      *
-     * @param messagesToRemove list of message Ids
+     * @param messageToRemove list of message Ids
      */
     abstract void removeFromCache(long messageToRemove);
 
@@ -81,5 +83,32 @@ public interface AndesMessageCache {
      * @return a {@link AndesMessagePart} if the message is found otherwise null
      */
     abstract AndesMessagePart getContentFromCache(long messageId, int offsetValue);
+
+    /**
+     * Check if cache is ready
+     *
+     * @return true if cache is ready to use
+     */
+    boolean isOperational();
+
+    /**
+     * Enable the cache explicitly
+     */
+    void enable();
+
+    /**
+     * Disable the cache explicitly
+     */
+    void disable();
+
+    /**
+     * Get a list of messages to be delivered by order they were added to cache
+     *
+     * @param messageCountToRead number of messages to read
+     * @param messageBucket container passed to fill messages from cache
+     * @return a list of deliverable messages
+     */
+    void readMessagesFromCache(int messageCountToRead, MessageBucket messageBucket);
+
 
 }

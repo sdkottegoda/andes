@@ -22,6 +22,8 @@ import com.gs.collections.impl.list.mutable.primitive.LongArrayList;
 import com.gs.collections.impl.map.mutable.primitive.LongObjectHashMap;
 import org.wso2.andes.kernel.AndesMessage;
 import org.wso2.andes.kernel.AndesMessagePart;
+import org.wso2.andes.kernel.DeliverableAndesMetadata;
+import org.wso2.andes.kernel.MessageBucket;
 
 import java.util.List;
 
@@ -78,6 +80,26 @@ public class DisabledMessageCacheImpl implements AndesMessageCache {
     public AndesMessagePart getContentFromCache(long messageId, int offsetValue) {
         return null;
 
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean isOperational() {
+        return true;
+    }
+
+    @Override
+    public void enable() {
+    }
+
+    @Override
+    public void disable() {
+    }
+
+    @Override
+    public void readMessagesFromCache(int messageCountToRead, MessageBucket messageBucket) {
     }
 
 }

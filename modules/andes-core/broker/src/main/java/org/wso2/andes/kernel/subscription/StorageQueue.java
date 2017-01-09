@@ -23,6 +23,7 @@ import org.wso2.andes.configuration.AndesConfigurationManager;
 import org.wso2.andes.configuration.enums.AndesConfiguration;
 import org.wso2.andes.kernel.AndesContext;
 import org.wso2.andes.kernel.AndesException;
+import org.wso2.andes.kernel.AndesMessage;
 import org.wso2.andes.kernel.DeliverableAndesMetadata;
 import org.wso2.andes.kernel.MessageHandler;
 import org.wso2.andes.kernel.SubscriptionAlreadyExistsException;
@@ -106,7 +107,7 @@ public class StorageQueue {
         this.isExclusive = isExclusive;
         this.lastPurgedTimestamp = 0L;
         this.boundedSubscriptions = new ArrayList<>(1);
-        this.messageHandler = new MessageHandler(name);
+        this.messageHandler = new MessageHandler(this);
     }
 
     /**
@@ -393,6 +394,16 @@ public class StorageQueue {
         lastPurgedTimestamp = System.currentTimeMillis();
         log.info("Purging messages of queue " + name);
         return messageHandler.purgeMessagesOfQueue();
+    }
+
+    /**
+     * Store incoming message to queue
+     *
+     * @param message message to store
+     * @throws AndesException in case of an exception at message store
+     */
+    public void storeMessage(AndesMessage message) throws AndesException {
+        messageHandler.storeMessage(message);
     }
 
     /**
