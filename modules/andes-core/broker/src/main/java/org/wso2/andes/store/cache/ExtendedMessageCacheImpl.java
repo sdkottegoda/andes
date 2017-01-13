@@ -36,7 +36,7 @@ public class ExtendedMessageCacheImpl extends GuavaBasedMessageCacheImpl{
         super();
         this.storageQueue = storageQueue;
         this.isCacheInOperation = true;
-        messageIdsQueuedInOrder = new ConcurrentLinkedQueue<>();
+        this.messageIdsQueuedInOrder = new ConcurrentLinkedQueue<>();
     }
 
     public boolean isOperational() {
@@ -68,10 +68,9 @@ public class ExtendedMessageCacheImpl extends GuavaBasedMessageCacheImpl{
             log.debug("Retrieved message id " + messageId + " from cache");
         }
         if (null == message) {
-            isCacheInOperation = false;
             log.info("Subscribers are slower than publishers for queue " + storageQueue + ". Since cache will not be "
                     + "used");
-            clear();
+            this.disable();
         } else {
             cache.invalidate(message);
         }

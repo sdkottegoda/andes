@@ -121,14 +121,18 @@ public class MessageWriter implements BatchEventHandler, StoreHealthListener {
             }
 
             try {
+
+                long writeStartTime = System.currentTimeMillis();
                 messagingEngine.messagesReceived(currentMessageList);
+                long writeCompleteTime = System.currentTimeMillis();
 
                 if (!retainMap.isEmpty()) {
                     messagingEngine.storeRetainedMessages(retainMap);
                 }
 
                 if (log.isDebugEnabled()) {
-                    log.debug(currentMessageList.size() + " messages received from disruptor.");
+                    log.debug(currentMessageList.size() + " messages received from disruptor. Time to write = "
+                    + (writeCompleteTime - writeStartTime) + " ms");
                 }
 
                 if (MessageTracer.isEnabled()) {

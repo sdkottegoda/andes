@@ -23,11 +23,11 @@ import org.wso2.andes.kernel.subscription.StorageQueue;
 import org.wso2.andes.server.queue.DLCQueueUtils;
 import org.wso2.andes.store.cache.AndesMessageCache;
 import org.wso2.andes.store.cache.ExtendedMessageCacheImpl;
+import org.wso2.andes.store.cache.MessageCacheFactory;
 import org.wso2.andes.tools.utils.MessageTracer;
 
 import java.io.File;
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 
@@ -95,13 +95,17 @@ public class MessageHandler {
      */
     private Integer maxNumberOfReadButUndeliveredMessages;
 
+    private boolean isInMemoryModeActive;
+
     public MessageHandler(StorageQueue queue) {
         this.queue = queue;
-        this.metadataCache = new ExtendedMessageCacheImpl(queue);
+        this.metadataCache = (new MessageCacheFactory()).create(queue);
         this.maxNumberOfReadButUndeliveredMessages = AndesConfigurationManager.
                 readValue(AndesConfiguration.PERFORMANCE_TUNING_DELIVERY_MAX_READ_BUT_UNDELIVERED_MESSAGES);
         this.messageCountToRead = AndesConfigurationManager.
                 readValue(AndesConfiguration.PERFORMANCE_TUNING_SLOTS_SLOT_WINDOW_SIZE);
+        this.isInMemoryModeActive = AndesConfigurationManager.
+                readValue(AndesConfiguration.PERSISTENCE_IN_MEMORY_MODE_ACTIVE);
         this.messageDeliveryManager = SlotDeliveryWorkerManager.getInstance();
         this.lastPurgedTimestamp = 0L;
         this.messageStore = AndesContext.getInstance().getMessageStore();
@@ -147,14 +151,26 @@ public class MessageHandler {
         long startMessageID = IdOfLastMessageRead + 1;
 
         if(metadataCache.isOperational()) {
+            if(log.isDebugEnabled()) {
+                log.debug("Reading message metadata from cache. [count= " + messageCountToRead + ", queue= " + queue
+                        .getName());
+            }
+
             metadataCache.readMessagesFromCache(messageCountToRead, messageBucket);
-            if(messageBucket.numberOfMessagesRead() == 0) {
+
+            if(log.isDebugEnabled()) {
+                log.debug("Read messages from cache for queue " + queue.getName()
+                        + ":" + messageBucket.messagesReadAsStringVal());
+            }
+
+            if((!isInMemoryModeActive) && (messageBucket.numberOfMessagesRead() == 0)) {
                 readMessagesFromMessageStore(startMessageID,
                         messageCountToRead, messageBucket);
                 if(messageBucket.numberOfMessagesRead() > 0) {
                     metadataCache.disable();        //messages left in DB. Disabling cache
                 }
             }
+
         } else {
             readMessagesFromMessageStore(startMessageID,
                     messageCountToRead, messageBucket);
@@ -185,7 +201,8 @@ public class MessageHandler {
                     numOfMessagesToLoad);
 
             if (log.isDebugEnabled()) {
-                log.debug("Messages Read: " + messageBucket.messagesReadAsStringVal());
+                log.debug("Messages Read for queue " + queue.getName()
+                        + " from DB: " + messageBucket.messagesReadAsStringVal());
             }
 
         } catch (AndesException aex) {

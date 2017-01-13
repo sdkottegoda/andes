@@ -273,7 +273,7 @@ public class RDBMSConstants {
     protected static final String PS_SELECT_METADATA_FROM_QUEUE =
             "SELECT " + MESSAGE_ID + "," + METADATA
             + " FROM " + METADATA_TABLE
-            + " WHERE " + MESSAGE_ID + ">?"
+            + " WHERE " + MESSAGE_ID + ">=?"
             + " AND " + QUEUE_ID + "=?"
             + " AND " + DLC_QUEUE_ID + "=-1"
             + " ORDER BY " + MESSAGE_ID

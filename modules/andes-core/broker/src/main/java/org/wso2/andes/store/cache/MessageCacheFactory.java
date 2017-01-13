@@ -20,6 +20,7 @@ package org.wso2.andes.store.cache;
 
 import org.wso2.andes.configuration.AndesConfigurationManager;
 import org.wso2.andes.configuration.enums.AndesConfiguration;
+import org.wso2.andes.kernel.subscription.StorageQueue;
 
 /**
  * Factory to create a {@link AndesMessageCache} based on the configurations in broker.xml 
@@ -27,29 +28,38 @@ import org.wso2.andes.configuration.enums.AndesConfiguration;
  */
 public class MessageCacheFactory {
 
-    
+
     /***
      * Create a {@link AndesMessageCache} with the configurations passed.
      * currently it will either returns a {@link GuavaBasedMessageCacheImpl} or
      * {@link DisabledMessageCacheImpl} if cacheSize is configured as '0' in
      * broker.xml
-     * 
-     * @param connectionProperties
-     *            configuration options
+     * @param queue storage queue whose messages should be stored in the cache. If this param is null, factory will
+     *              create a generic cache to store any message.
      * @return a {@link AndesMessageCache}
      */
-    public AndesMessageCache create() {
+    public AndesMessageCache create(StorageQueue queue) {
 
         int cacheSizeInMegaBytes = AndesConfigurationManager.readValue(AndesConfiguration.PERSISTENCE_CACHE_SIZE);
-                                    
+
         AndesMessageCache cache = null;
-        
-        if ( cacheSizeInMegaBytes <= 0){
-            cache = new DisabledMessageCacheImpl();
+
+        if (null == queue) {
+            if (cacheSizeInMegaBytes <= 0) {
+                cache = new DisabledMessageCacheImpl();
+            } else {
+                cache = new GuavaBasedMessageCacheImpl();
+            }
         } else {
-            cache = new GuavaBasedMessageCacheImpl();
+            boolean isInMemoryModeActive = AndesConfigurationManager.
+                    readValue(AndesConfiguration.PERSISTENCE_IN_MEMORY_MODE_ACTIVE);
+            if (isInMemoryModeActive) {
+                cache = new AlwaysOnMessageCacheImpl(queue);
+            } else {
+                cache = new ExtendedMessageCacheImpl(queue);
+            }
         }
-        
+
         return cache;
     }
     

@@ -60,7 +60,7 @@ public class GuavaBasedMessageCacheImpl implements AndesMessageCache {
      * Size of the cache is determined via configuration. For example cache can
      * keep 1GB 'worth of' message payloads (and its meta data) in the memory.
      */
-    final Cache<Long, AndesMessage> cache;
+     Cache<Long, AndesMessage> cache;
 
     /**
      * Used to schedule a cache clean up task and print cache statistics ( used for debugging perposes)

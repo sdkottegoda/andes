@@ -27,11 +27,13 @@ public class MessageBucket {
     private DeliverableAndesMetadata lastMessageRead;
     private int numberOfMessagesRead;
     private StorageQueue queue;
+    private StringBuilder messageIDString;
 
     public MessageBucket(StorageQueue queue, ConcurrentMap<Long, DeliverableAndesMetadata> container) {
         this.queue = queue;
         this.container = container;
         this.numberOfMessagesRead = 0;
+        this.messageIDString = new StringBuilder();
     }
 
     public void bufferMessage(DeliverableAndesMetadata message) {
@@ -42,6 +44,7 @@ public class MessageBucket {
     }
 
     private void postRead(DeliverableAndesMetadata message) {
+        messageIDString.append(message.messageID).append(" , ");
         message.markAsBuffered();
         MessageTracer.trace(message, MessageTracer.METADATA_BUFFERED_FOR_DELIVERY);
     }
@@ -63,10 +66,6 @@ public class MessageBucket {
     }
 
     public String messagesReadAsStringVal() {
-        StringBuilder messageIDString = new StringBuilder();
-        for (long messageID : container.keySet()) {
-            messageIDString.append(messageID).append(" , ");
-        }
         return messageIDString.toString();
     }
 }

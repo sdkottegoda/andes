@@ -256,6 +256,12 @@ public enum AndesConfiguration implements ConfigurationProperty {
      * This can be used to access a property by giving its key. e.g. hosturl
      */
     TRANSPORT_MQTT_AUTHORIZATION_PROPERTIES("transports/mqtt/security/authorizer/property[@name = '{key}']", "", String.class),
+
+    /**
+     * Property for in-memory enable switch
+     */
+    PERSISTENCE_IN_MEMORY_MODE_ACTIVE("persistence/inMemory/enabled", "false", Boolean.class),
+
     /**
      * The class that is used to access an external RDBMS database to operate on messages.
      */

@@ -25,6 +25,8 @@ import com.google.common.cache.Weigher;
 import com.gs.collections.impl.list.mutable.primitive.LongArrayList;
 import com.gs.collections.impl.map.mutable.primitive.LongObjectHashMap;
 import org.apache.log4j.Logger;
+import org.wso2.andes.configuration.AndesConfigurationManager;
+import org.wso2.andes.configuration.enums.AndesConfiguration;
 import org.wso2.andes.configuration.util.ConfigurationProperties;
 import org.wso2.andes.kernel.AndesContext;
 import org.wso2.andes.kernel.AndesContextStore;
@@ -91,6 +93,11 @@ public class RDBMSMessageStoreImpl implements MessageStore {
     private AndesMessageCache messageCache;
 
     /**
+     * Keeps if in memory mode is enabled for broker. No DB operations are possible in this mode
+     */
+    private boolean isInMemoryModeActive;
+
+    /**
      * Interval between two consecutive stat logs in milliseconds for slot recovery process
      */
     private static final int STAT_PUBLISHING_INTERVAL = 10 * 1000;
@@ -117,12 +124,15 @@ public class RDBMSMessageStoreImpl implements MessageStore {
     public DurableStoreConnection initializeMessageStore(AndesContextStore contextStore,
             ConfigurationProperties connectionProperties) throws AndesException {
 
+        this.isInMemoryModeActive = (boolean) AndesConfigurationManager.
+                readValue(AndesConfiguration.PERSISTENCE_IN_MEMORY_MODE_ACTIVE);
+
         this.rdbmsConnection = new RDBMSConnection();
         // read data source name from config and use
         this.rdbmsConnection.initialize(connectionProperties);
         this.rdbmsStoreUtils = new RDBMSStoreUtils(connectionProperties);
 
-        this.messageCache = (new MessageCacheFactory()).create();
+        this.messageCache = (new MessageCacheFactory()).create(null);
         initializeQueueMappingCache();
 
         log.info("Message Store initialised");
@@ -287,7 +297,12 @@ public class RDBMSMessageStoreImpl implements MessageStore {
             fillContentFromCache(messageIDList, contentList);
 
             if (!messageIDList.isEmpty()) {
-                fillContentFromStorage(messageIDList, contentList);
+                if(!isInMemoryModeActive) {
+                    fillContentFromStorage(messageIDList, contentList);
+                } else {
+                    log.error("Messages are not present in cache. Try increasing cache size or speeding up"
+                            + "consumer");
+                }
             }
 
         } finally {
@@ -375,62 +390,80 @@ public class RDBMSMessageStoreImpl implements MessageStore {
      */
     @Override
     public void storeMessages(List<AndesMessage> messageList) throws AndesException {
-        Connection connection = null;
-        PreparedStatement storeMetadataPS = null;
-        PreparedStatement storeContentPS = null;
-        PreparedStatement storeExpiryMetadataPS = null;
-        boolean messageWithExpirationDetected = false;
+        if(!isInMemoryModeActive) {
+            Connection connection = null;
+            PreparedStatement storeMetadataPS = null;
+            PreparedStatement storeContentPS = null;
+            PreparedStatement storeExpiryMetadataPS = null;
+            boolean messageWithExpirationDetected = false;
 
-        try {
+            try {
 
-            connection = getConnection();
-            storeMetadataPS = connection.prepareStatement(PS_INSERT_METADATA);
-            storeContentPS = connection.prepareStatement(PS_INSERT_MESSAGE_PART);
-            storeExpiryMetadataPS = connection.prepareStatement(PS_INSERT_EXPIRY_DATA);
+                connection = getConnection();
+                storeMetadataPS = connection.prepareStatement(PS_INSERT_METADATA);
+                storeContentPS = connection.prepareStatement(PS_INSERT_MESSAGE_PART);
+                storeExpiryMetadataPS = connection.prepareStatement(PS_INSERT_EXPIRY_DATA);
 
-            for (AndesMessage message : messageList) {
+                long totalContentLengthToWrite = 0;     //content size in bytes
 
-                addMetadataToBatch(storeMetadataPS, message.getMetadata(), message.getMetadata().getStorageQueueName());
-                //if message has expiration time store it into expiration table
-                if (message.getMetadata().isExpirationDefined()) {
-                    messageWithExpirationDetected = true;
-                    addExpiryTableEntryToBatch(storeExpiryMetadataPS, message.getMetadata());
+                for (AndesMessage message : messageList) {
+
+                    addMetadataToBatch(storeMetadataPS, message.getMetadata(), message.getMetadata().getStorageQueueName());
+                    //if message has expiration time store it into expiration table
+                    if (message.getMetadata().isExpirationDefined()) {
+                        messageWithExpirationDetected = true;
+                        addExpiryTableEntryToBatch(storeExpiryMetadataPS, message.getMetadata());
+                    }
+
+                    for (AndesMessagePart messagePart : message.getContentChunkList()) {
+                        addContentToBatch(storeContentPS, messagePart);
+                        totalContentLengthToWrite = totalContentLengthToWrite + messagePart.getDataLength();
+                    }
+
                 }
 
-                for (AndesMessagePart messagePart : message.getContentChunkList()) {
-                    addContentToBatch(storeContentPS, messagePart);
+                long messageWriteStartTime = System.currentTimeMillis();
+
+                storeMetadataPS.executeBatch();
+                storeContentPS.executeBatch();
+                if (messageWithExpirationDetected) {
+                    storeExpiryMetadataPS.executeBatch();
                 }
-            }
+                connection.commit();
 
-            storeMetadataPS.executeBatch();
-            storeContentPS.executeBatch();
-            if (messageWithExpirationDetected) {
-                storeExpiryMetadataPS.executeBatch();
-            }
-            connection.commit();
+                long messageWriteCompleteTime = System.currentTimeMillis();
 
-            // Add messages to cache after adding them to the database
-            // Messages are added afterwards since we need to add messages to the cache only if they are added to the
-            // database.
+                if(log.isDebugEnabled()) {
+                    log.debug("Write message to DB - count:" + messageList.size() + " time:"
+                            + (messageWriteCompleteTime - messageWriteStartTime) + "size(KB):"
+                            + totalContentLengthToWrite/ 1024);
+                }
+
+                // Add messages to cache after adding them to the database
+                // Messages are added afterwards since we need to add messages to the cache only if they are added to the
+                // database.
+                addToCache(messageList);
+            } catch (BatchUpdateException bue) {
+                log.warn("Error occurred while inserting message list. Messages will be stored individually.", bue);
+                rollback(connection, RDBMSConstants.TASK_ADDING_METADATA);
+                // If adding some of the messages failed, add them individually
+                for (AndesMessage message : messageList) {
+                    storeMessage(message);
+                }
+            } catch (AndesException e) {
+                rollback(connection, RDBMSConstants.TASK_ADDING_METADATA);
+                throw e;
+            } catch (SQLException e) {
+                rollback(connection, RDBMSConstants.TASK_ADDING_METADATA);
+                throw rdbmsStoreUtils.convertSQLException("Error occurred while inserting messages to queue ", e);
+            } finally {
+                close(storeExpiryMetadataPS, RDBMSConstants.TASK_ADDING_MESSAGES);
+                close(storeMetadataPS, RDBMSConstants.TASK_ADDING_MESSAGES);
+                close(storeContentPS, RDBMSConstants.TASK_ADDING_MESSAGES);
+                close(connection, RDBMSConstants.TASK_ADDING_MESSAGES);
+            }
+        } else {
             addToCache(messageList);
-        } catch (BatchUpdateException bue) {
-            log.warn("Error occurred while inserting message list. Messages will be stored individually.", bue);
-            rollback(connection, RDBMSConstants.TASK_ADDING_METADATA);
-            // If adding some of the messages failed, add them individually
-            for (AndesMessage message : messageList) {
-                storeMessage(message);
-            }
-        } catch (AndesException e) {
-            rollback(connection, RDBMSConstants.TASK_ADDING_METADATA);
-            throw e;
-        } catch (SQLException e) {
-            rollback(connection, RDBMSConstants.TASK_ADDING_METADATA);
-            throw rdbmsStoreUtils.convertSQLException("Error occurred while inserting messages to queue ", e);
-        } finally {
-            close(storeExpiryMetadataPS, RDBMSConstants.TASK_ADDING_MESSAGES);
-            close(storeMetadataPS, RDBMSConstants.TASK_ADDING_MESSAGES);
-            close(storeContentPS, RDBMSConstants.TASK_ADDING_MESSAGES);
-            close(connection, RDBMSConstants.TASK_ADDING_MESSAGES);
         }
     }
 
@@ -2231,7 +2264,6 @@ public class RDBMSMessageStoreImpl implements MessageStore {
             StorageQueue queue = AndesContext.getInstance().
                     getStorageQueueRegistry().getStorageQueue(queueToAddMessage);
             queue.storeMessage(message);
-
         }
     }
 
