@@ -51,7 +51,7 @@ public class RoundRobinQueueDistributor implements QueueDistributeStrategy {
         nodeData = contextStore.getAllStoredNodeData();
         for (Map.Entry<String, String> nodeEntry : nodeData.entrySet()) {
             String nodeID = nodeEntry.getKey();
-            String[] nodeDetail = nodeEntry.getValue().split("\\|");
+            String[] nodeDetail = nodeEntry.getValue().split(":");
             String hostName = nodeDetail[0];
             String jmsPort = nodeDetail[1];
             nodesList.add(new NodeInfo(nodeID, hostName, jmsPort));
@@ -68,13 +68,14 @@ public class RoundRobinQueueDistributor implements QueueDistributeStrategy {
         Collections.sort(nodes,new Comparator<NodeInfo>(){
             @Override
             public int compare(final NodeInfo lhs,NodeInfo rhs) {
-                if(lhs.getNumOfAssignedQueues() > rhs.getNumOfAssignedQueues()) {
+                return lhs.getNumOfAssignedQueues() - rhs.getNumOfAssignedQueues();
+                /*if(lhs.getNumOfAssignedQueues() < rhs.getNumOfAssignedQueues()) {
                     return 1;
                 } else if (lhs.getNumOfAssignedQueues() > rhs.getNumOfAssignedQueues()) {
                     return -1;
                 } else {
                     return 0;
-                }
+                }*/
             }
         });
     }

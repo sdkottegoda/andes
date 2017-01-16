@@ -22,6 +22,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.andes.AMQException;
 import org.wso2.andes.AMQInternalException;
+import org.wso2.andes.configuration.AndesConfigurationManager;
+import org.wso2.andes.configuration.enums.AndesConfiguration;
 import org.wso2.andes.exchange.ExchangeDefaults;
 import org.wso2.andes.framing.AMQShortString;
 import org.wso2.andes.framing.abstraction.ContentChunk;
@@ -29,6 +31,7 @@ import org.wso2.andes.kernel.Andes;
 import org.wso2.andes.kernel.AndesAckData;
 import org.wso2.andes.kernel.AndesChannel;
 import org.wso2.andes.kernel.AndesContext;
+import org.wso2.andes.kernel.AndesContextStore;
 import org.wso2.andes.kernel.AndesException;
 import org.wso2.andes.kernel.AndesMessage;
 import org.wso2.andes.kernel.AndesMessageMetadata;
@@ -54,6 +57,7 @@ import org.wso2.andes.protocol.AMQConstant;
 import org.wso2.andes.server.AMQChannel;
 import org.wso2.andes.server.ClusterResourceHolder;
 import org.wso2.andes.server.binding.Binding;
+import org.wso2.andes.server.cluster.coordination.distributor.QueueDistributor;
 import org.wso2.andes.server.exchange.Exchange;
 import org.wso2.andes.server.message.AMQMessage;
 import org.wso2.andes.server.queue.AMQQueue;
@@ -63,6 +67,8 @@ import org.wso2.andes.server.store.StorableMessageMetaData;
 import org.wso2.andes.server.subscription.Subscription;
 import org.wso2.andes.server.subscription.SubscriptionImpl;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -365,6 +371,17 @@ public class QpidAndesBridge {
                 if (log.isDebugEnabled()) {
                     log.debug("Adding Subscription " + subscription.getSubscriptionID() + " to queue " + queue.getName());
                 }
+                //check if the subscription is allowed to be on this node
+                AndesContextStore contextStore = AndesContext.getInstance().getAndesContextStore();
+                String destinedNode = new QueueDistributor(contextStore).getMasterNode(queue.getName(), "amqp");
+                Integer port = AndesConfigurationManager.readValue(AndesConfiguration.
+                        TRANSPORTS_AMQP_DEFAULT_CONNECTION_PORT);
+                String hostPort = InetAddress.getLocalHost().getHostAddress() + ":" + port;
+                if (!hostPort.equals(destinedNode)){
+                    log.error("Incorrect node for connection of queue: " + queue.getName());
+                    throw new AMQException(AMQConstant.NOT_ALLOWED, "Incorrect node for queue: " + queue.getName()
+                                                                    + ". Node destined to queue: " + destinedNode);
+                }
                 addLocalSubscriptionsForAllBindingsOfQueue(queue, subscription);
             }
         } catch (SubscriptionAlreadyExistsException e) {
@@ -373,6 +390,9 @@ public class QpidAndesBridge {
         } catch (AndesException e) {
             log.error("Error while adding the subscription", e);
             throw new AMQException(AMQConstant.INTERNAL_ERROR, "Error while registering subscription", e);
+        } catch (UnknownHostException e) {
+            log.error("Error occured while retreiving node data");
+            throw new AMQException(AMQConstant.INTERNAL_ERROR, "Error retreiving node information ");
         }
     }
 

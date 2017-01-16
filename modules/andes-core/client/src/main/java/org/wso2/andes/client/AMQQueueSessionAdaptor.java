@@ -20,46 +20,37 @@
  */
 package org.wso2.andes.client;
 
-import java.io.Serializable;
+import org.apache.axis.client.Call;
+import org.apache.axis.client.Service;
+import org.wso2.andes.AMQException;
+import org.wso2.andes.jms.BrokerDetails;
+import org.wso2.andes.jms.ConnectionURL;
+import org.wso2.andes.jms.FailoverPolicy;
 
-import javax.jms.BytesMessage;
-import javax.jms.Destination;
+import java.io.IOException;
+import java.io.Serializable;
+import java.net.MalformedURLException;
+import java.rmi.RemoteException;
+
+import javax.jms.*;
 import javax.jms.IllegalStateException;
-import javax.jms.JMSException;
-import javax.jms.MapMessage;
-import javax.jms.Message;
-import javax.jms.MessageConsumer;
-import javax.jms.MessageListener;
-import javax.jms.MessageProducer;
-import javax.jms.ObjectMessage;
-import javax.jms.Queue;
-import javax.jms.QueueBrowser;
-import javax.jms.QueueReceiver;
-import javax.jms.QueueSender;
-import javax.jms.QueueSession;
-import javax.jms.Session;
-import javax.jms.StreamMessage;
-import javax.jms.TemporaryQueue;
-import javax.jms.TemporaryTopic;
-import javax.jms.TextMessage;
-import javax.jms.Topic;
-import javax.jms.TopicSubscriber;
+import javax.xml.namespace.QName;
+import javax.xml.rpc.ServiceException;
 
 /**
  * Need this adaptor class to conform to JMS spec and throw IllegalStateException
  * from createDurableSubscriber, unsubscribe, createTopic & createTemporaryTopic
  */
-public class AMQQueueSessionAdaptor implements QueueSession, AMQSessionAdapter
-{
+public class AMQQueueSessionAdaptor implements QueueSession, AMQSessionAdapter {
     //holds a session for delegation
-    protected final AMQSession _session;
+    protected AMQSession _session;
 
     /**
      * Construct an adaptor with a session to wrap
+     *
      * @param session
      */
-    public AMQQueueSessionAdaptor(Session session)
-    {
+    public AMQQueueSessionAdaptor(Session session) {
         _session = (AMQSession) session;
     }
 
@@ -80,6 +71,7 @@ public class AMQQueueSessionAdaptor implements QueueSession, AMQSessionAdapter
     }
 
     public QueueSender createSender(Queue queue) throws JMSException {
+        checkValidDestination(queue);
         return _session.createSender(queue);
     }
 
@@ -128,7 +120,7 @@ public class AMQQueueSessionAdaptor implements QueueSession, AMQSessionAdapter
     }
 
     public int getAcknowledgeMode() throws JMSException {
-       return _session.getAcknowledgeMode();
+        return _session.getAcknowledgeMode();
     }
 
     public void commit() throws JMSException {
@@ -148,7 +140,7 @@ public class AMQQueueSessionAdaptor implements QueueSession, AMQSessionAdapter
     }
 
     public MessageListener getMessageListener() throws JMSException {
-       return _session.getMessageListener();
+        return _session.getMessageListener();
     }
 
     public void setMessageListener(MessageListener messageListener) throws JMSException {
@@ -164,15 +156,24 @@ public class AMQQueueSessionAdaptor implements QueueSession, AMQSessionAdapter
     }
 
     public MessageConsumer createConsumer(Destination destination) throws JMSException {
-        return _session.createConsumer(destination);
+        //        return _session.createConsumer(destination);
+        checkValidDestination(destination);
+
+        return _session.createConsumerImpl(destination, _session.getDefaultPrefetchHigh(), _session
+                        .getDefaultPrefetchLow(), false,
+                (destination
+                        instanceof
+                        Topic), null, null,
+                ((destination instanceof AMQDestination) && ((AMQDestination) destination).isBrowseOnly()), false);
+
     }
 
     public MessageConsumer createConsumer(Destination destination, String string) throws JMSException {
-        return _session.createConsumer(destination,string);
+        return _session.createConsumer(destination, string);
     }
 
     public MessageConsumer createConsumer(Destination destination, String string, boolean b) throws JMSException {
-        return _session.createConsumer(destination,string,b);
+        return _session.createConsumer(destination, string, b);
     }
 
     //The following methods cannot be called from a QueueSession as per JMS spec
@@ -185,8 +186,9 @@ public class AMQQueueSessionAdaptor implements QueueSession, AMQSessionAdapter
         throw new IllegalStateException("Cannot call createDurableSubscriber from QueueSession");
     }
 
-    public TopicSubscriber createDurableSubscriber(Topic topic, String string, String string1, boolean b) throws JMSException {
-         throw new IllegalStateException("Cannot call createDurableSubscriber from QueueSession");
+    public TopicSubscriber createDurableSubscriber(Topic topic, String string, String string1, boolean b) throws
+            JMSException {
+        throw new IllegalStateException("Cannot call createDurableSubscriber from QueueSession");
     }
 
     public TemporaryTopic createTemporaryTopic() throws JMSException {
@@ -197,8 +199,75 @@ public class AMQQueueSessionAdaptor implements QueueSession, AMQSessionAdapter
         throw new IllegalStateException("Cannot call unsubscribe from QueueSession");
     }
 
-    public AMQSession getSession()
-    {
+    public AMQSession getSession() {
         return _session;
+    }
+
+    private void checkValidDestination(Destination destination) throws InvalidDestinationException {
+        if (destination == null) {
+            throw new javax.jms.InvalidDestinationException("Invalid Queue");
+        } else {
+            try {
+                String nodeForDesitnation = getNodeForDestination(destination);
+                String[] hostPort = nodeForDesitnation.split(":");
+                AMQConnection connection = this._session._connection;
+                String host = connection.getActiveBrokerDetails().getHost();
+                int port = connection.getActiveBrokerDetails().getPort();
+                String matchinHost = hostPort[0];
+                int matchingPort = Integer.parseInt(hostPort[1]);
+                if (!host.equals(matchinHost)
+                    || matchingPort != port) {
+                    if (connection.getSessions().size() == 1) {
+                        connection.close();
+                        System.out.println("Redirected connection to: " + nodeForDesitnation);
+                        BrokerDetails brokerDetails = new AMQBrokerDetails(matchinHost, matchingPort, connection
+                                .getSSLConfiguration());
+                        brokerDetails.setTransport(connection.getActiveBrokerDetails().getTransport());
+                        ConnectionURL url = connection.getConnectionURL();
+//                        url.getAllBrokerDetails().clear();
+                        url.getAllBrokerDetails().add(0, brokerDetails);
+//                        url.getURL().replace("10.100.7.72:5672","10.100.7.72:5673");
+//                        connection.setFailoverPolicy(new FailoverPolicy(connection.getConnectionURL(), connection));
+//                        connection.makeBrokerConnection(brokerDetails);
+                        connection.reInitAMQConnection(url);
+                        if (!connection._closed.getAndSet(false)) {
+                            connection._closing.set(false);
+                        }
+                            this._session = (AMQSession) connection.createSession(false, 1);
+                    } else
+                        throw new InvalidDestinationException(
+                                "Invalid node: " + host + ":" + port + " for destination. "
+                                + "Matching node for destination: "
+                                + destination + " is " + nodeForDesitnation);
+
+                }
+            } catch (ServiceException | JMSException | IOException | AMQException e) {
+                //TODO just only for the POC
+                throw new InvalidDestinationException(e.getMessage());
+            }
+        }
+    }
+
+    private String getNodeForDestination(Destination destination) throws ServiceException, MalformedURLException,
+            RemoteException, JMSException {
+        System.out.println("Calling web service!!!");
+        String host = this._session._connection.getActiveBrokerDetails().getHost();
+        String port = "9443";
+        String endpoint = "https://" + host + ":" + port + "/services/AndesManagerService";
+        System.setProperty(
+                "javax.net.ssl.trustStore",
+                "/home/sasikala/Documents/MB/Cluster/MB1/wso2mb-3.2.0-SNAPSHOT/repository/resources/security"
+                + "/wso2carbon.jks");
+        Service service = new Service();
+        Call call = (Call) service.createCall();
+        call.setTargetEndpointAddress(new java.net.URL(endpoint));
+        call.setOperationName(new QName("http://mgt.cluster.andes.carbon.wso2.org", "getOwningNodeOfQueue"));
+        call.setUsername("admin");
+        call.setPassword("admin");
+
+        String response = (String) call.invoke(new Object[]{((Queue) destination).getQueueName(), "amqp"});
+        //        System.out.println(response);
+        //        response = "10.100.7.72:5672";
+        return response;
     }
 }

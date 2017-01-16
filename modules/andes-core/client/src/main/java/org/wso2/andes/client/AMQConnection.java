@@ -20,6 +20,8 @@
  */
 package org.wso2.andes.client;
 
+import org.apache.axis.client.Call;
+import org.apache.axis.client.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.wso2.andes.AMQConnectionFailureException;
@@ -51,8 +53,10 @@ import org.wso2.andes.url.URLSyntaxException;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.ConnectException;
+import java.net.MalformedURLException;
 import java.net.UnknownHostException;
 import java.nio.channels.UnresolvedAddressException;
+import java.rmi.RemoteException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
@@ -69,6 +73,7 @@ import javax.jms.ConnectionMetaData;
 import javax.jms.Destination;
 import javax.jms.ExceptionListener;
 import javax.jms.IllegalStateException;
+import javax.jms.InvalidDestinationException;
 import javax.jms.JMSException;
 import javax.jms.Queue;
 import javax.jms.QueueConnection;
@@ -81,6 +86,8 @@ import javax.naming.NamingException;
 import javax.naming.Reference;
 import javax.naming.Referenceable;
 import javax.naming.StringRefAddr;
+import javax.xml.namespace.QName;
+import javax.xml.rpc.ServiceException;
 
 public class AMQConnection extends Closeable implements Connection, QueueConnection, TopicConnection, Referenceable
 {
@@ -91,9 +98,9 @@ public class AMQConnection extends Closeable implements Connection, QueueConnect
      * This is the "root" mutex that must be held when doing anything that could be impacted by failover. This must be
      * held by any child objects of this connection such as the session, producers and consumers.
      */
-    private final Object _failoverMutex = new Object();
+    private Object _failoverMutex = new Object();
 
-    private final Object _sessionCreationLock = new Object();
+    private Object _sessionCreationLock = new Object();
 
     /**
      * A channel is roughly analogous to a session. The server can negotiate the maximum number of channels per session
@@ -112,9 +119,9 @@ public class AMQConnection extends Closeable implements Connection, QueueConnect
     protected AMQProtocolHandler _protocolHandler;
 
     /** Maps from session id (Integer) to AMQSession instance */
-    private final ChannelToSessionMap _sessions = new ChannelToSessionMap();
+    private ChannelToSessionMap _sessions = new ChannelToSessionMap();
 
-    private final String _clientName;
+    private String _clientName;
 
     /** The user name to use for authentication */
     private String _username;
@@ -129,7 +136,7 @@ public class AMQConnection extends Closeable implements Connection, QueueConnect
 
     private ConnectionListener _connectionListener;
 
-    private final ConnectionURL _connectionURL;
+    private ConnectionURL _connectionURL;
 
     /**
      * Whether this connection is started, i.e. whether messages are flowing to consumers. It has no meaning for message
@@ -159,7 +166,7 @@ public class AMQConnection extends Closeable implements Connection, QueueConnect
     private AMQShortString _temporaryQueueExchangeName = ExchangeDefaults.DIRECT_EXCHANGE_NAME;
 
     /** Thread Pool for executing connection level processes. Such as returning bounced messages. */
-    private final ExecutorService _taskPool = Executors.newCachedThreadPool();
+    private ExecutorService _taskPool = Executors.newCachedThreadPool();
     private static final long DEFAULT_TIMEOUT = 1000 * 30;
 
     protected AMQConnectionDelegate _delegate;
@@ -900,6 +907,14 @@ public class AMQConnection extends Closeable implements Connection, QueueConnect
         }
     }
 
+    public void closeOnlyConnection() {
+        if (!_closed.getAndSet(true)) {
+
+            _closing.set(false);
+
+        }
+    }
+
     private void doClose(List<AMQSession> sessions, long timeout) throws JMSException
     {
         synchronized (_sessionCreationLock)
@@ -1557,5 +1572,241 @@ public class AMQConnection extends Closeable implements Connection, QueueConnect
                 throw new AMQException(AMQConstant.ALREADY_EXISTS,"ClientID must be unique",e);
             }
         }
+    }
+
+    public void reInitAMQConnection(ConnectionURL connectionURL) throws
+            AMQException {
+        this._failoverMutex = new Object();
+        this._sessionCreationLock = new Object();
+        this._sessions = new ChannelToSessionMap();
+        this._defaultTopicExchangeName = ExchangeDefaults.TOPIC_EXCHANGE_NAME;
+        this._defaultQueueExchangeName = ExchangeDefaults.DIRECT_EXCHANGE_NAME;
+        this._temporaryTopicExchangeName = ExchangeDefaults.TOPIC_EXCHANGE_NAME;
+        this._temporaryQueueExchangeName = ExchangeDefaults.DIRECT_EXCHANGE_NAME;
+        this._taskPool = Executors.newCachedThreadPool();
+        this._syncPublish = "";
+        if(connectionURL == null) {
+            throw new IllegalArgumentException("Connection must be specified");
+        } else {
+            if(connectionURL.getOption("maxprefetch") != null) {
+                this._maxPrefetch = Integer.parseInt(connectionURL.getOption("maxprefetch"));
+            } else {
+                this._maxPrefetch = Integer.parseInt(System.getProperty("max_prefetch", "500"));
+            }
+
+            if(connectionURL.getOption("sync_persistence") != null) {
+                this._syncPersistence = Boolean.parseBoolean(connectionURL.getOption("sync_persistence"));
+                _logger.warn("sync_persistence is a deprecated property, please use sync_publish={persistent|all} instead");
+            } else {
+                this._syncPersistence = Boolean.getBoolean("sync_persistence");
+                if(this._syncPersistence) {
+                    _logger.warn("sync_persistence is a deprecated property, please use sync_publish={persistent|all} instead");
+                }
+            }
+
+            if(connectionURL.getOption("sync_ack") != null) {
+                this._syncAck = Boolean.parseBoolean(connectionURL.getOption("sync_ack"));
+            } else {
+                this._syncAck = Boolean.getBoolean("sync_ack");
+            }
+
+            if(connectionURL.getOption("sync_publish") != null) {
+                this._syncPublish = connectionURL.getOption("sync_publish");
+            } else {
+                this._syncPublish = System.getProperty("sync_publish", this._syncPublish);
+            }
+
+            if(connectionURL.getOption("use_legacy_map_msg_format") != null) {
+                this._useLegacyMapMessageFormat = Boolean.parseBoolean(connectionURL.getOption("use_legacy_map_msg_format"));
+            } else {
+                this._useLegacyMapMessageFormat = Boolean.getBoolean("qpid.use_legacy_map_message");
+            }
+
+            String amqpVersion = (String)AccessController.doPrivileged(new PrivilegedAction() {
+                public String run() {
+                    return System.getProperty("qpid.amqp.version", "0-10");
+                }
+            });
+            _logger.debug("AMQP version " + amqpVersion);
+            this._failoverPolicy = new FailoverPolicy(connectionURL, this);
+            BrokerDetails brokerDetails = this._failoverPolicy.getCurrentBrokerDetails();
+            if("0-8".equals(amqpVersion)) {
+                this._delegate = new AMQConnectionDelegate_8_0(this);
+            } else if("0-9".equals(amqpVersion)) {
+                this._delegate = new AMQConnectionDelegate_0_9(this);
+            } else if(!"0-91".equals(amqpVersion) && !"0-9-1".equals(amqpVersion)) {
+                this._delegate = new AMQConnectionDelegate_0_10(this);
+            } else {
+                this._delegate = new AMQConnectionDelegate_9_1(this);
+            }
+
+            if(_logger.isDebugEnabled()) {
+                _logger.debug("Connection:" + connectionURL);
+            }
+
+            this._connectionURL = connectionURL;
+            this._clientName = connectionURL.getClientName();
+            this._username = connectionURL.getUsername();
+            this._password = connectionURL.getPassword();
+            this.setVirtualHost(connectionURL.getVirtualHost());
+            if(connectionURL.getDefaultQueueExchangeName() != null) {
+                this._defaultQueueExchangeName = connectionURL.getDefaultQueueExchangeName();
+            }
+
+            if(connectionURL.getDefaultTopicExchangeName() != null) {
+                this._defaultTopicExchangeName = connectionURL.getDefaultTopicExchangeName();
+            }
+
+            if(connectionURL.getTemporaryQueueExchangeName() != null) {
+                this._temporaryQueueExchangeName = connectionURL.getTemporaryQueueExchangeName();
+            }
+
+            if(connectionURL.getTemporaryTopicExchangeName() != null) {
+                this._temporaryTopicExchangeName = connectionURL.getTemporaryTopicExchangeName();
+            }
+
+            this._protocolHandler = new AMQProtocolHandler(this);
+            if(_logger.isDebugEnabled()) {
+                _logger.debug("Connecting with ProtocolHandler Version:" + this._protocolHandler.getProtocolVersion());
+            }
+
+            this._connected = false;
+            boolean retryAllowed = true;
+            Exception connectionException = null;
+
+            while(!this._connected && retryAllowed && brokerDetails != null) {
+                ProtocolVersion protocolVersion = null;
+
+                try {
+                    protocolVersion = this.makeBrokerConnection(brokerDetails);
+                } catch (Exception var9) {
+                    if(_logger.isInfoEnabled()) {
+                        _logger.info("Unable to connect to broker at " + this._failoverPolicy.getCurrentBrokerDetails(), var9);
+                    }
+
+                    connectionException = var9;
+                }
+
+                if(protocolVersion != null) {
+                    this.initDelegate(protocolVersion);
+                } else if(!this._connected) {
+                    retryAllowed = this._failoverPolicy.failoverAllowed();
+                    brokerDetails = this._failoverPolicy.getNextBrokerDetails();
+                }
+            }
+
+            this.verifyClientID();
+            if(_logger.isDebugEnabled()) {
+                _logger.debug("Are we connected:" + this._connected);
+            }
+
+            if(this._connected) {
+                if(_logger.isDebugEnabled()) {
+                    _logger.debug("Connected with ProtocolHandler Version:" + this._protocolHandler.getProtocolVersion());
+                }
+
+                this._sessions.setMaxChannelID(this._delegate.getMaxChannelID());
+                this._sessions.setMinChannelID(this._delegate.getMinChannelID());
+                this._connectionMetaData = new QpidConnectionMetaData(this);
+            } else {
+                if(_logger.isDebugEnabled()) {
+                    _logger.debug("Last attempted ProtocolHandler Version:" + this._protocolHandler.getProtocolVersion());
+                }
+
+                String message1 = null;
+                if(connectionException != null) {
+                    if(connectionException.getCause() != null) {
+                        message1 = connectionException.getCause().getMessage();
+                    } else {
+                        message1 = connectionException.getMessage();
+                    }
+                }
+
+                if(message1 == null || message1.equals("")) {
+                    if(message1 == null) {
+                        message1 = "Unable to Connect";
+                    } else {
+                        message1 = "Unable to Connect:" + connectionException.getClass();
+                    }
+                }
+
+                for(Object th = connectionException; th != null; th = ((Throwable)th).getCause()) {
+                    if(th instanceof UnresolvedAddressException || th instanceof UnknownHostException) {
+                        throw new AMQUnresolvedAddressException(message1, this._failoverPolicy.getCurrentBrokerDetails().toString(), connectionException);
+                    }
+                }
+
+                throw new AMQConnectionFailureException(message1, connectionException);
+            }
+        }
+    }
+
+    public AMQSession checkValidDestination(Destination destination) throws InvalidDestinationException {
+        if (destination == null) {
+            throw new javax.jms.InvalidDestinationException("Invalid Queue");
+        } else {
+            try {
+                String nodeForDesitnation = getNodeForDestination(destination);
+                String[] hostPort = nodeForDesitnation.split(":");
+//                AMQConnection connection = this._session._connection;
+                String host = this.getActiveBrokerDetails().getHost();
+                int port = this.getActiveBrokerDetails().getPort();
+                String matchinHost = hostPort[0];
+                int matchingPort = Integer.parseInt(hostPort[1]);
+                if (!host.equals(matchinHost)
+                    || matchingPort != port) {
+                    if (this.getSessions().size() == 1) {
+                        this.close();
+                        System.out.println("Redirected connection to: " + nodeForDesitnation);
+                        BrokerDetails brokerDetails = new AMQBrokerDetails(matchinHost, matchingPort, this
+                                .getSSLConfiguration());
+                        brokerDetails.setTransport(this.getActiveBrokerDetails().getTransport());
+                        ConnectionURL url = this.getConnectionURL();
+                        url.getAllBrokerDetails().clear();
+                        url.addBrokerDetails(brokerDetails);
+                        //                        url.getURL().replace("10.100.7.72:5672","10.100.7.72:5673");
+                        //                        connection.setFailoverPolicy(new FailoverPolicy(connection.getConnectionURL(), connection));
+                        //                        connection.makeBrokerConnection(brokerDetails);
+                        this.reInitAMQConnection(url);
+                        if (!this._closed.getAndSet(false)) {
+                            this._closing.set(false);
+                        }
+                        return (AMQSession) this.createSession(true, 1);
+                    } else
+                        throw new InvalidDestinationException(
+                                "Invalid node: " + host + ":" + port + " for destination. "
+                                + "Matching node for destination: "
+                                + destination + " is " + nodeForDesitnation);
+
+                }
+            } catch (ServiceException | JMSException | IOException | AMQException e) {
+                //TODO just only for the POC
+                throw new InvalidDestinationException(e.getMessage());
+            }
+        }
+        return null;
+    }
+
+    private String getNodeForDestination(Destination destination) throws ServiceException, MalformedURLException,
+            RemoteException, JMSException {
+        System.out.println("Calling web service!!!");
+        String host = this.getActiveBrokerDetails().getHost();
+        String port = "9443";
+        String endpoint = "https://" + host + ":" + port + "/services/AndesManagerService";
+        System.setProperty(
+                "javax.net.ssl.trustStore",
+                "/home/sasikala/Documents/MB/Cluster/MB1/wso2mb-3.2.0-SNAPSHOT/repository/resources/security"
+                + "/wso2carbon.jks");
+        Service service = new Service();
+        Call call = (Call) service.createCall();
+        call.setTargetEndpointAddress(new java.net.URL(endpoint));
+        call.setOperationName(new QName("http://mgt.cluster.andes.carbon.wso2.org", "getOwningNodeOfQueue"));
+        call.setUsername("admin");
+        call.setPassword("admin");
+
+        String response = (String) call.invoke(new Object[]{((Queue) destination).getQueueName(), "amqp"});
+        //        System.out.println(response);
+        //        response = "10.100.7.72:5672";
+        return response;
     }
 }
