@@ -20,6 +20,7 @@
  */
 package org.wso2.andes.client;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
@@ -98,6 +99,7 @@ import org.wso2.andes.framing.AMQShortString;
 import org.wso2.andes.framing.FieldTable;
 import org.wso2.andes.framing.FieldTableFactory;
 import org.wso2.andes.framing.MethodRegistry;
+import org.wso2.andes.jms.BrokerDetails;
 import org.wso2.andes.jms.Session;
 import org.wso2.andes.thread.Threading;
 import org.slf4j.Logger;
@@ -1487,6 +1489,7 @@ public abstract class AMQSession<C extends BasicMessageConsumer, P extends Basic
 
     public QueueSender createSender(Queue queue) throws JMSException
     {
+        checkValidDestination(queue);
         checkNotClosed();
 
         // return (QueueSender) createProducer(queue);
@@ -2521,11 +2524,24 @@ public abstract class AMQSession<C extends BasicMessageConsumer, P extends Basic
                 int port = this._connection.getActiveBrokerDetails().getPort();
                 if (!host.equals(hostPort[0])
                     || Integer.parseInt(hostPort[1]) != port) {
-                    throw new InvalidDestinationException("Invalid node: " + host + ":" + port + " for destination. "
-                                                          + "Matching node for destination: "
-                                                          + destination + " is " + nodeForDesitnation);
+                    if (this._connection.getSessions().size() == 1) {
+                        this._connection.closeOnlyConnection();
+                        System.out.println("Redirected connection to: " + nodeForDesitnation);
+                        BrokerDetails brokerDetails = new AMQBrokerDetails(host, port, this._connection
+                                .getSSLConfiguration());
+                        brokerDetails.setTransport(this._connection.getActiveBrokerDetails().getTransport());
+                        _connection.makeBrokerConnection(brokerDetails);
+                        if (!_connection._closed.getAndSet(false)) {
+                            _connection._closing.set(false);
+                        }
+                    }
+                    else
+                        throw new InvalidDestinationException("Invalid node: " + host + ":" + port + " for destination. "
+                                                              + "Matching node for destination: "
+                                                              + destination + " is " + nodeForDesitnation);
+
                 }
-            } catch (ServiceException | MalformedURLException | RemoteException | JMSException e) {
+            } catch (ServiceException | JMSException | IOException | AMQException e) {
                 //TODO just only for the POC
                 throw new InvalidDestinationException(e.getMessage());
             }
