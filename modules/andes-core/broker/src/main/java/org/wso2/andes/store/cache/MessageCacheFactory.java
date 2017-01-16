@@ -31,32 +31,51 @@ public class MessageCacheFactory {
 
     /***
      * Create a {@link AndesMessageCache} with the configurations passed.
-     * currently it will either returns a {@link GuavaBasedMessageCacheImpl} or
-     * {@link DisabledMessageCacheImpl} if cacheSize is configured as '0' in
-     * broker.xml
+     * currently it will either returns a {@link ExtendedMessageCacheImpl} or
+     * {@link AlwaysOnExtendedMessageCacheImpl} if broker is operate in-memory mode
      * @param queue storage queue whose messages should be stored in the cache. If this param is null, factory will
      *              create a generic cache to store any message.
      * @return a {@link AndesMessageCache}
      */
     public AndesMessageCache create(StorageQueue queue) {
 
-        int cacheSizeInMegaBytes = AndesConfigurationManager.readValue(AndesConfiguration.PERSISTENCE_CACHE_SIZE);
+        AndesMessageCache cache;
 
-        AndesMessageCache cache = null;
+        boolean isInMemoryModeActive = AndesConfigurationManager.
+                readValue(AndesConfiguration.PERSISTENCE_IN_MEMORY_MODE_ACTIVE);
 
-        if (null == queue) {
+        if(isInMemoryModeActive) {
+            cache = new AlwaysOnExtendedMessageCacheImpl(queue);
+        } else {
+            cache = new ExtendedMessageCacheImpl(queue);
+        }
+
+        return cache;
+    }
+
+    /***
+     * Create a {@link AndesMessageCache} with the configurations passed.
+     * currently it will either returns a {@link GuavaBasedMessageCacheImpl} or
+     * {@link DisabledMessageCacheImpl} if cacheSize is configured as '0' in
+     * broker.xml. If broker operates in-memory mode it returns a {@link AlwaysOnMessageCacheImpl}
+     * @return a {@link AndesMessageCache}
+     */
+    public AndesMessageCache create() {
+        AndesMessageCache cache;
+
+        boolean isInMemoryModeActive = AndesConfigurationManager.
+                readValue(AndesConfiguration.PERSISTENCE_IN_MEMORY_MODE_ACTIVE);
+
+        int cacheSizeInMegaBytes = AndesConfigurationManager.
+                readValue(AndesConfiguration.PERSISTENCE_CACHE_SIZE);
+
+        if (isInMemoryModeActive) {
+            cache = new AlwaysOnMessageCacheImpl();
+        } else {
             if (cacheSizeInMegaBytes <= 0) {
                 cache = new DisabledMessageCacheImpl();
             } else {
                 cache = new GuavaBasedMessageCacheImpl();
-            }
-        } else {
-            boolean isInMemoryModeActive = AndesConfigurationManager.
-                    readValue(AndesConfiguration.PERSISTENCE_IN_MEMORY_MODE_ACTIVE);
-            if (isInMemoryModeActive) {
-                cache = new AlwaysOnMessageCacheImpl(queue);
-            } else {
-                cache = new ExtendedMessageCacheImpl(queue);
             }
         }
 

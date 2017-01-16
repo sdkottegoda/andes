@@ -15,15 +15,17 @@
 
 package org.wso2.andes.store.cache;
 
+
 import com.google.common.cache.CacheBuilder;
 import org.apache.log4j.Logger;
 import org.wso2.andes.configuration.AndesConfigurationManager;
 import org.wso2.andes.configuration.enums.AndesConfiguration;
+import org.wso2.andes.kernel.AndesMessage;
+import org.wso2.andes.kernel.subscription.StorageQueue;
 
-public class AlwaysOnMessageCacheImpl extends GuavaBasedMessageCacheImpl{
+public class AlwaysOnExtendedMessageCacheImpl extends ExtendedMessageCacheImpl{
 
-    private static final Logger log = Logger.getLogger(AlwaysOnMessageCacheImpl.class);
-
+    private static final Logger log = Logger.getLogger(AlwaysOnExtendedMessageCacheImpl.class);
     /**
      * Cache values can be kept using weak references.
      */
@@ -35,10 +37,13 @@ public class AlwaysOnMessageCacheImpl extends GuavaBasedMessageCacheImpl{
     private final boolean printStats;
 
 
-    public AlwaysOnMessageCacheImpl() {
-
-        super();
-
+    /**
+     * This class implements always operation message cache. Cache will never expire. It has no maximum
+     * limit. If used without reading fast enough can cause Out of Memory issues
+     * @param storageQueue cache contains messages of this queue
+     */
+    public AlwaysOnExtendedMessageCacheImpl(StorageQueue storageQueue) {
+        super(storageQueue);
         int cacheConcurrency = AndesConfigurationManager
                 .readValue(AndesConfiguration.PERSISTENCE_CACHE_CONCURRENCY_LEVEL);
 
@@ -57,8 +62,8 @@ public class AlwaysOnMessageCacheImpl extends GuavaBasedMessageCacheImpl{
         }
 
         this.cache = builder.build();
-    }
 
+    }
 
     public boolean isOperational() {
         return true;
@@ -68,8 +73,18 @@ public class AlwaysOnMessageCacheImpl extends GuavaBasedMessageCacheImpl{
         throw new UnsupportedOperationException("AlwaysOnExtendedMessageCacheImpl cannot be disabled");
     }
 
-    @Override
-    public void enable() {
-        //always enabled
+    public AndesMessage getMessageFromCache(long messageId) {
+        //if there is a cache miss, invalidate all and restore from DB
+        //at the fist time, place a warning that switched to DB mode
+        AndesMessage message = cache.getIfPresent(messageId);
+        if(log.isDebugEnabled()) {
+            log.debug("Retrieved message id " + messageId + " from cache");
+        }
+        if (null == message) {
+            log.warn("Cache miss for message id=" + messageId + ". This will result message loss");
+        } else {
+            cache.invalidate(message);
+        }
+        return message;
     }
 }

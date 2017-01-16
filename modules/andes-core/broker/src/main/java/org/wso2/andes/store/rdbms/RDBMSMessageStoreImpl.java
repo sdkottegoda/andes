@@ -132,7 +132,7 @@ public class RDBMSMessageStoreImpl implements MessageStore {
         this.rdbmsConnection.initialize(connectionProperties);
         this.rdbmsStoreUtils = new RDBMSStoreUtils(connectionProperties);
 
-        this.messageCache = (new MessageCacheFactory()).create(null);
+        this.messageCache = (new MessageCacheFactory()).create();
         initializeQueueMappingCache();
 
         log.info("Message Store initialised");
