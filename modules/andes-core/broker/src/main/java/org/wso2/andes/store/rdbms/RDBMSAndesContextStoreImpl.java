@@ -2248,4 +2248,27 @@ public class RDBMSAndesContextStoreImpl implements AndesContextStore {
             close(connection, task);
         }
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void clearQueueAssignementsForNode(String nodeId) throws AndesException {
+        Connection connection = null;
+        PreparedStatement clearMembershipEvents = null;
+        String task = "Clearing queue assignments for node: " + nodeId;
+        try {
+            connection = getConnection();
+            clearMembershipEvents = connection.prepareStatement(RDBMSConstants.PS_CLEAR_QUEUE_ASSIGNMENTS_FOR_NODE);
+            clearMembershipEvents.setString(1, nodeId);
+            clearMembershipEvents.executeUpdate();
+            connection.commit();
+        } catch (SQLException e) {
+            rollback(connection, task);
+            throw rdbmsStoreUtils.convertSQLException("Error occurred while " + task, e);
+        } finally {
+            close(clearMembershipEvents, task);
+            close(connection, task);
+        }
+    }
 }

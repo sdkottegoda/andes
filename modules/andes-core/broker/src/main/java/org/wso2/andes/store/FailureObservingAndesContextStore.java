@@ -955,4 +955,16 @@ public class FailureObservingAndesContextStore implements AndesContextStore {
             throw exception;
         }
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void clearQueueAssignementsForNode(String nodeId) throws AndesException {
+        try {
+            wrappedAndesContextStoreInstance.clearQueueAssignementsForNode(nodeId);
+        } catch (AndesStoreUnavailableException exception) {
+            notifyFailures(exception);
+            throw exception;
+        }
+    }
 }

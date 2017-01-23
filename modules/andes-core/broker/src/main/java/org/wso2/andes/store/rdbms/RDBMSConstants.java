@@ -452,6 +452,13 @@ public class RDBMSConstants {
             "DELETE FROM " + CLUSTER_EVENT_TABLE
             + " WHERE " + DESTINED_MEMBER_ID + "=?";
 
+    /**
+     * Prepared statement to clear queue assignments to a particular member.
+     */
+    protected static final String PS_CLEAR_QUEUE_ASSIGNMENTS_FOR_NODE =
+            "DELETE FROM " + QUEUE_MASTER_TABLE
+            + " WHERE " + NODE_ID + "=?";
+
     protected static final String PS_SELECT_ALL_NODE_INFO =
             "SELECT " + NODE_ID + "," + NODE_INFO
             + " FROM " + NODE_INFO_TABLE;

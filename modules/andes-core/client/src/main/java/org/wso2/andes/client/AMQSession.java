@@ -101,6 +101,7 @@ import org.wso2.andes.framing.FieldTableFactory;
 import org.wso2.andes.framing.MethodRegistry;
 import org.wso2.andes.jms.BrokerDetails;
 import org.wso2.andes.jms.Session;
+import org.wso2.andes.protocol.AMQConstant;
 import org.wso2.andes.thread.Threading;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -356,6 +357,10 @@ public abstract class AMQSession<C extends BasicMessageConsumer, P extends Basic
     /** Holds all of the producers created by this session, keyed by their unique identifiers. */
     private Map<Long, MessageProducer> _producers = new ConcurrentHashMap<Long, MessageProducer>();
 
+    public Map<Long, MessageProducer> get_producers() {
+        return _producers;
+    }
+
     /**
      * Used as a source of unique identifiers so that the consumers can be tagged to match them to BasicConsume
      * methods.
@@ -367,6 +372,10 @@ public abstract class AMQSession<C extends BasicMessageConsumer, P extends Basic
      * consumer.
      */
     protected final IdToConsumerMap<C> _consumers = new IdToConsumerMap<C>();
+
+    public IdToConsumerMap<C> get_consumers() {
+        return _consumers;
+    }
 
     /**
      * Contains a list of consumers which have been removed but which might still have
@@ -2516,7 +2525,7 @@ public abstract class AMQSession<C extends BasicMessageConsumer, P extends Basic
     private void checkValidDestination(Destination destination) throws InvalidDestinationException {
         if (destination == null) {
             throw new javax.jms.InvalidDestinationException("Invalid Queue");
-        } else {
+        } /*else {
             try {
                 String nodeForDesitnation = getNodeForDestination(destination);
                 String[] hostPort = nodeForDesitnation.split(":");
@@ -2545,7 +2554,7 @@ public abstract class AMQSession<C extends BasicMessageConsumer, P extends Basic
                 //TODO just only for the POC
                 throw new InvalidDestinationException(e.getMessage());
             }
-        }
+        }*/
     }
 
     private void checkValidQueue(Queue queue) throws InvalidDestinationException
