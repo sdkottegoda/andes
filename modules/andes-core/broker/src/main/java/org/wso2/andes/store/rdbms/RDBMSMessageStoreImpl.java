@@ -1919,7 +1919,12 @@ public class RDBMSMessageStoreImpl implements MessageStore {
     @Override
     public void incrementTotalReceivedMessageCountForQueue(String destinationQueueName, long incrementBy)
             throws AndesException {
-        totalMessagesReceived.get(destinationQueueName).addAndGet(incrementBy);
+        AtomicLong count = totalMessagesReceived.get(destinationQueueName);
+        if (null == count) {
+            count = new AtomicLong(0);
+            totalMessagesReceived.put(destinationQueueName, count);
+        }
+        count.addAndGet(incrementBy);
     }
 
     /**
@@ -1928,7 +1933,13 @@ public class RDBMSMessageStoreImpl implements MessageStore {
     @Override
     public void incrementTotalAckedMessageCountForQueue(String destinationQueueName, long incrementBy)
             throws AndesException {
-        totalMessagesAcked.get(destinationQueueName).addAndGet((incrementBy));
+        totalMessagesAcked.get(destinationQueueName);
+        AtomicLong count = totalMessagesAcked.get(destinationQueueName);
+        if (null == count) {
+            count = new AtomicLong(0);
+            totalMessagesAcked.put(destinationQueueName, count);
+        }
+        count.addAndGet((incrementBy));
     }
 
     /**
