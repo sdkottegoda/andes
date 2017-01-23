@@ -354,13 +354,14 @@ public class QpidAndesBridge {
      *
      * @param subscription qpid subscription
      * @param queue        qpid queue
-     * @throws AMQException
+     * @throws AMQException if a durable topic subscription already
+     *                      exists in same ID or queue owning node is different
      */
     public static void createAMQPSubscription(Subscription subscription, AMQQueue queue) throws AMQException {
         try {
             if (log.isDebugEnabled()) {
-                log.debug("AMQP BRIDGE: create AMQP Subscription subID " + subscription.getSubscriptionID() + " from queue "
-                        + queue.getName());
+                log.debug("AMQP BRIDGE: create AMQP Subscription subID " + subscription.getSubscriptionID()
+                        + " from queue " + queue.getName());
             }
 
             if (subscription instanceof SubscriptionImpl.BrowserSubscription) {
@@ -369,18 +370,16 @@ public class QpidAndesBridge {
                 deliveryWorker.send();
             } else {
                 if (log.isDebugEnabled()) {
-                    log.debug("Adding Subscription " + subscription.getSubscriptionID() + " to queue " + queue.getName());
+                    log.debug("Adding Subscription " + subscription.getSubscriptionID() + " to queue " + queue
+                            .getName());
                 }
                 //check if the subscription is allowed to be on this node
-                AndesContextStore contextStore = AndesContext.getInstance().getAndesContextStore();
-                String destinedNode = new QueueDistributor(contextStore).getMasterNode(queue.getName(), "amqp");
-                Integer port = AndesConfigurationManager.readValue(AndesConfiguration.
-                        TRANSPORTS_AMQP_DEFAULT_CONNECTION_PORT);
-                String hostPort = InetAddress.getLocalHost().getHostAddress() + ":" + port;
-                if (!hostPort.equals(destinedNode)){
+                StorageQueue storageQueue = AndesContext.getInstance()
+                        .getStorageQueueRegistry().getStorageQueue(queue.getName());
+                if (!storageQueue.isOwnedByCurrentNode()) {
                     log.error("Incorrect node for connection of queue: " + queue.getName());
                     throw new AMQException(AMQConstant.NOT_ALLOWED, "Incorrect node for queue: " + queue.getName()
-                                                                    + ". Node destined to queue: " + destinedNode);
+                            + ". Node destined to queue: " + storageQueue.getMasterNode());
                 }
                 addLocalSubscriptionsForAllBindingsOfQueue(queue, subscription);
             }
@@ -390,9 +389,6 @@ public class QpidAndesBridge {
         } catch (AndesException e) {
             log.error("Error while adding the subscription", e);
             throw new AMQException(AMQConstant.INTERNAL_ERROR, "Error while registering subscription", e);
-        } catch (UnknownHostException e) {
-            log.error("Error occured while retreiving node data");
-            throw new AMQException(AMQConstant.INTERNAL_ERROR, "Error retreiving node information ");
         }
     }
 

@@ -22,6 +22,7 @@
 package org.wso2.andes.management.common.mbeans;
 
 import org.wso2.andes.management.common.mbeans.annotations.MBeanAttribute;
+import org.wso2.andes.management.common.mbeans.annotations.MBeanOperation;
 import org.wso2.andes.management.common.mbeans.annotations.MBeanOperationParameter;
 import javax.management.MBeanException;
 import javax.management.openmbean.CompositeData;
@@ -52,10 +53,19 @@ public interface QueueManagementInformation {
     String JMS_EXPIRATION = "JMSExpiration";
     String MSG_DESTINATION = "MessageDestination";
     String ANDES_MSG_METADATA_ID = "AndesMessageMetadataId";
+    String QUEUE_NAME = "queueName";
+    String QUEUE_MASTER_NODE = "queueMasterNode";
+    String REMAINING_MESSAGE_COUNT = "pendingMessageCount";
+    String TOTAL_RECEIVED_MESSAGE_COUNT = "totalReceivedMsgCount";
+    String TOTAL_ACKED_Message_COUNT = "totalAckedMsgCount";
 
     List<String> VIEW_MSG_CONTENT_COMPOSITE_ITEM_NAMES_DESC = Collections.unmodifiableList(Arrays.asList(JMS_PROPERTIES,
             CONTENT_TYPE, CONTENT, JMS_MESSAGE_ID, JMS_REDELIVERED,
             TIME_STAMP, MSG_DESTINATION, ANDES_MSG_METADATA_ID));
+
+    List<String> VIEW_QUEUE_INFORMATION_COMPOSITE_ITEM_NAMES_DESC = Collections.
+            unmodifiableList(Arrays.asList(QUEUE_NAME, QUEUE_MASTER_NODE, REMAINING_MESSAGE_COUNT,
+                    TOTAL_RECEIVED_MESSAGE_COUNT, TOTAL_ACKED_Message_COUNT));
 
     /***
      * Retrieve all destination queue names.
@@ -71,6 +81,10 @@ public interface QueueManagementInformation {
      */
     @MBeanAttribute(name = "AllQueueCounts", description = "Message counts of all queues")
     Map<String, Integer> getAllQueueCounts();
+
+
+    @MBeanAttribute(name = "AllQueueInformation", description = "Information of all queues")
+    CompositeData[] getAllQueueInformation() throws MBeanException;
 
 
     /**

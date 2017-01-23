@@ -30,7 +30,6 @@ import org.wso2.andes.configuration.AndesConfigurationManager;
 import org.wso2.andes.configuration.enums.AndesConfiguration;
 import org.wso2.andes.kernel.AndesMessage;
 import org.wso2.andes.kernel.AndesMessagePart;
-import org.wso2.andes.kernel.DeliverableAndesMetadata;
 import org.wso2.andes.kernel.MessageBucket;
 
 import java.util.ArrayList;
@@ -144,15 +143,11 @@ public class GuavaBasedMessageCacheImpl implements AndesMessageCache {
 
     /**
      * {@inheritDoc}
+     * @param messagesToRemove List of messages to remove
      */
     @Override
-    public void removeFromCache(LongArrayList messagesToRemove) {
-        ArrayList<Long> arrayList = new ArrayList<>();
-        MutableLongIterator iterator = messagesToRemove.longIterator();
-        while (iterator.hasNext()) {
-            arrayList.add(iterator.next());
-        }
-        cache.invalidateAll(arrayList);
+    public void removeFromCache(List<Long> messagesToRemove) {
+        cache.invalidateAll(messagesToRemove);
     }
 
     /**

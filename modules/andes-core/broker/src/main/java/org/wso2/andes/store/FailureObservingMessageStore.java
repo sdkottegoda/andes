@@ -489,6 +489,32 @@ public class FailureObservingMessageStore implements MessageStore {
      * {@inheritDoc}
      */
     @Override
+    public long getTotalReceivedMessageCount(String queueName) throws AndesException {
+        try {
+            return wrappedInstance.getTotalReceivedMessageCount(queueName);
+        } catch (AndesStoreUnavailableException exception) {
+            notifyFailures(exception);
+            throw exception;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public long getTotalAckedMessageCount(String queueName) throws AndesException {
+        try {
+            return wrappedInstance.getTotalAckedMessageCount(queueName);
+        } catch (AndesStoreUnavailableException exception) {
+            notifyFailures(exception);
+            throw exception;
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public long getMessageCountForQueueInDLC(String storageQueueName, String dlcQueueName) throws AndesException {
         try {
             return wrappedInstance.getMessageCountForQueueInDLC(storageQueueName, dlcQueueName);
@@ -549,9 +575,9 @@ public class FailureObservingMessageStore implements MessageStore {
      * {@inheritDoc}
      */
     @Override
-    public void incrementMessageCountForQueue(String storageQueueName, long incrementBy) throws AndesException {
+    public void incrementTotalReceivedMessageCountForQueue(String storageQueueName, long incrementBy) throws AndesException {
         try {
-            wrappedInstance.incrementMessageCountForQueue(storageQueueName, incrementBy);
+            wrappedInstance.incrementTotalReceivedMessageCountForQueue(storageQueueName, incrementBy);
         } catch (AndesStoreUnavailableException exception) {
             notifyFailures(exception);
             throw exception;
@@ -562,9 +588,9 @@ public class FailureObservingMessageStore implements MessageStore {
      * {@inheritDoc}
      */
     @Override
-    public void decrementMessageCountForQueue(String storageQueueName, long decrementBy) throws AndesException {
+    public void incrementTotalAckedMessageCountForQueue(String storageQueueName, long incrementBy) throws AndesException {
         try {
-            wrappedInstance.decrementMessageCountForQueue(storageQueueName, decrementBy);
+            wrappedInstance.incrementTotalAckedMessageCountForQueue(storageQueueName, incrementBy);
         } catch (AndesStoreUnavailableException exception) {
             notifyFailures(exception);
             throw exception;

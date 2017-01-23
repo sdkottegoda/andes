@@ -283,8 +283,8 @@ public interface MessageStore extends HealthAwareStore {
      * created queue can then be incremented and decremented.
      *
      * @param storageQueueName name of queue
-     * @see this.removeMessageCounterForQueue this.incrementMessageCountForQueue,
-     * this.decrementMessageCountForQueue
+     * @see this.removeMessageCounterForQueue this.incrementTotalMessageCountForQueue,
+     * this.decrementTotalMessageCountForQueue
      */
     void addQueue(String storageQueueName) throws AndesException;
 
@@ -313,6 +313,24 @@ public interface MessageStore extends HealthAwareStore {
      * @return message count
      */
     long getApproximateQueueMessageCount(String storageQueueName) throws AndesException;
+
+    /**
+     * Get total number of messages received to a given queue from broker startup
+     *
+     * @param queueName name of queue
+     * @return total number of messages received to queue
+     * @throws AndesException in case of query issue
+     */
+    long getTotalReceivedMessageCount(String queueName) throws AndesException;
+
+    /**
+     * Get total number of acknowledged messages for a queue from broker startup
+     *
+     * @param queueName name of queue
+     * @return total number of acknowledgements received for queue
+     * @throws AndesException in case of query issue
+     */
+    long getTotalAckedMessageCount(String queueName) throws AndesException;
 
     /**
      * Get message count of queue in DLC
@@ -362,16 +380,16 @@ public interface MessageStore extends HealthAwareStore {
      * @param incrementBy      increment counter by
      * @throws AndesException
      */
-    void incrementMessageCountForQueue(String storageQueueName, long incrementBy) throws AndesException;
+    void incrementTotalReceivedMessageCountForQueue(String storageQueueName, long incrementBy) throws AndesException;
 
     /**
      * Decrement message counter for a queue
      *
      * @param storageQueueName name of the queue actually stored in DB
-     * @param decrementBy      decrement counter by
+     * @param incrementBy      decrement counter by
      * @throws AndesException
      */
-    void decrementMessageCountForQueue(String storageQueueName, long decrementBy) throws AndesException;
+    void incrementTotalAckedMessageCountForQueue(String storageQueueName, long incrementBy) throws AndesException;
 
     /**
      * Store retained message list in the message store.

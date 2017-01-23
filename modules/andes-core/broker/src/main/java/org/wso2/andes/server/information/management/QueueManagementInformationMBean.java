@@ -39,7 +39,6 @@ import org.wso2.andes.kernel.AndesException;
 import org.wso2.andes.kernel.AndesMessage;
 import org.wso2.andes.kernel.AndesMessageMetadata;
 import org.wso2.andes.kernel.AndesMessagePart;
-import org.wso2.andes.kernel.AndesUtils;
 import org.wso2.andes.kernel.DisablePubAckImpl;
 import org.wso2.andes.kernel.FlowControlListener;
 import org.wso2.andes.kernel.MessagingEngine;
@@ -107,6 +106,10 @@ public class QueueManagementInformationMBean extends AMQManagedObject implements
     // OpenMBean data types for viewMessageContent method
     private static CompositeType _msgContentType = null;
     private static OpenType[] _msgContentAttributeTypes = new OpenType[8];
+
+    // OpenMBean data types for getQueueInformation
+    private static CompositeType _queueInformationType = null;
+    private static OpenType[] _queueInformationAttributeTypes = new OpenType[5];
 
     /**
      * Publisher Acknowledgements are disabled for this MBean
@@ -218,12 +221,26 @@ public class QueueManagementInformationMBean extends AMQManagedObject implements
         _msgContentAttributeTypes[5] = SimpleType.LONG; // For JMS timeStamp
         _msgContentAttributeTypes[6] = SimpleType.STRING; // For dlc message destination
         _msgContentAttributeTypes[7] = SimpleType.LONG; // For andes message metadata id
+
+        _queueInformationAttributeTypes[0] = SimpleType.STRING; //for queue name
+        _queueInformationAttributeTypes[1] = SimpleType.STRING; //for queue master
+        _queueInformationAttributeTypes[2] = SimpleType.INTEGER; //for remaining message count
+        _queueInformationAttributeTypes[3] = SimpleType.LONG; //for total received message count
+        _queueInformationAttributeTypes[4] = SimpleType.LONG; //for total acknowledged message count
+
         _msgContentType = new CompositeType("Message Content", "Message content for queue browse",
                 VIEW_MSG_CONTENT_COMPOSITE_ITEM_NAMES_DESC
                         .toArray(new String[VIEW_MSG_CONTENT_COMPOSITE_ITEM_NAMES_DESC.size()]),
                 VIEW_MSG_CONTENT_COMPOSITE_ITEM_NAMES_DESC
                         .toArray(new String[VIEW_MSG_CONTENT_COMPOSITE_ITEM_NAMES_DESC.size()]),
                 _msgContentAttributeTypes);
+        _queueInformationType = new CompositeType("QueueInformationType", "Composite type for queue information",
+                VIEW_QUEUE_INFORMATION_COMPOSITE_ITEM_NAMES_DESC.toArray
+                        (new String[VIEW_QUEUE_INFORMATION_COMPOSITE_ITEM_NAMES_DESC.size()]),
+                VIEW_QUEUE_INFORMATION_COMPOSITE_ITEM_NAMES_DESC.toArray
+                        (new String[VIEW_QUEUE_INFORMATION_COMPOSITE_ITEM_NAMES_DESC.size()]),
+                _queueInformationAttributeTypes);
+
         lz4CompressionHelper = new LZ4CompressionHelper();
     }
 
@@ -848,28 +865,6 @@ public class QueueManagementInformationMBean extends AMQManagedObject implements
     }
 
     /**
-     * Retrieve a valid andes messageId list from a given browser message Id list.
-     *
-     * @param browserMessageIdList List of browser messageIds.
-     * @return Valid Andes MessageId list
-     */
-    private LongArrayList getValidAndesMessageIdList(String[] browserMessageIdList) {
-        LongArrayList andesMessageIdList = new LongArrayList(browserMessageIdList.length);
-
-        for (String browserMessageId : browserMessageIdList) {
-            Long andesMessageId = AndesUtils.getAndesMessageId(browserMessageId);
-
-            if (andesMessageId > 0) {
-                andesMessageIdList.add(andesMessageId);
-            } else {
-                log.warn("A valid message could not be found for the message Id : " + browserMessageId);
-            }
-        }
-
-        return andesMessageIdList;
-    }
-
-    /**
      * We are returning message count to the UI from this method.
      * When it has received Acks from the clients more than the message actual
      * message in the  queue,( This can happen when a copy of a message get
@@ -923,7 +918,7 @@ public class QueueManagementInformationMBean extends AMQManagedObject implements
 
             for (StorageQueue dlcQueue : DLCQueues) {
                 if(queueName.equals(dlcQueue.getName())) {
-                    DLCQueueInformation.put(dlcQueue.getName(), dlcQueue.getMessageCount());
+                    DLCQueueInformation.put(dlcQueue.getName(), dlcQueue.getPendingMessageCount());
                     break;
                 }
             }
@@ -968,6 +963,36 @@ public class QueueManagementInformationMBean extends AMQManagedObject implements
             }
         } catch (OpenDataException exception) {
             throw new MBeanException(exception, "Error occurred in browse queue.");
+        }
+        return compositeDataList.toArray(new CompositeData[compositeDataList.size()]);
+    }
+
+    /**
+     * MBean to get all queue information as {@link CompositeData}
+     *
+     * @return array of {@link CompositeData}
+     * @throws MBeanException in case of an internal error getting queue information
+     */
+    public CompositeData[] getAllQueueInformation() throws MBeanException {
+        List<CompositeData> compositeDataList = new ArrayList<>();
+        try {
+            Map<String, Integer> queuesWithMessageCount = getAllQueueCounts();
+            for (Map.Entry<String, Integer> queueEntry : queuesWithMessageCount.entrySet()) {
+                StorageQueue queue = AndesContext.getInstance().getStorageQueueRegistry()
+                        .getStorageQueue(queueEntry.getKey());
+                Object[] itemValues = new Object[] {queueEntry.getKey(),
+                                                        queue.getMasterNode(),
+                                                        queueEntry.getValue(),
+                                                        queue.getTotalReceivedMessageCount(),
+                                                        queue.getTotalAckedMessageCount()};
+                CompositeDataSupport support = new CompositeDataSupport(_queueInformationType,
+                        VIEW_QUEUE_INFORMATION_COMPOSITE_ITEM_NAMES_DESC
+                                .toArray(new String[VIEW_QUEUE_INFORMATION_COMPOSITE_ITEM_NAMES_DESC.size()]),
+                        itemValues);
+                compositeDataList.add(support);
+            }
+        }catch (OpenDataException | AndesException exception) {
+            throw new MBeanException(exception, "Error occurred when getting queue information via JMX");
         }
         return compositeDataList.toArray(new CompositeData[compositeDataList.size()]);
     }

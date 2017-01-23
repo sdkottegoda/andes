@@ -217,25 +217,33 @@ public class MessagingEngine {
      */
     public void deleteMessages(List<DeliverableAndesMetadata> messagesToRemove) throws AndesException {
 
-        Map<String, List<AndesMessageMetadata>> storageSeparatedMessages = new HashMap<>();
+        List<Long> messageIdsToRemove = new ArrayList<>(messagesToRemove.size());
+
+//        for (DeliverableAndesMetadata message : messagesToRemove) {
+//            List<AndesMessageMetadata> messagesOfStorageQueue = storageSeparatedMessages
+//                    .get(message.getStorageQueueName());
+//            if (null == messagesOfStorageQueue) {
+//                messagesOfStorageQueue = new ArrayList<>();
+//            }
+//            messagesOfStorageQueue.add(message);
+//            storageSeparatedMessages.put(message.getStorageQueueName(), messagesOfStorageQueue);
+//        }
+//
+//        //delete message content along with metadata
+//        for (Map.Entry<String, List<AndesMessageMetadata>> entry : storageSeparatedMessages.entrySet()) {
+//            messageStore.deleteMessages(entry.getKey(), entry.getValue());
+//        }
 
         for (DeliverableAndesMetadata message : messagesToRemove) {
-            List<AndesMessageMetadata> messagesOfStorageQueue = storageSeparatedMessages
-                    .get(message.getStorageQueueName());
-            if (null == messagesOfStorageQueue) {
-                messagesOfStorageQueue = new ArrayList<>();
-            }
-            messagesOfStorageQueue.add(message);
-            storageSeparatedMessages.put(message.getStorageQueueName(), messagesOfStorageQueue);
+            messageIdsToRemove.add(message.getMessageID());
         }
 
-        //delete message content along with metadata
-        for (Map.Entry<String, List<AndesMessageMetadata>> entry : storageSeparatedMessages.entrySet()) {
-            messageStore.deleteMessages(entry.getKey(), entry.getValue());
-        }
+        deleteMessagesById(messageIdsToRemove);
+
         for (DeliverableAndesMetadata message : messagesToRemove) {
             //mark messages as deleted
             message.markAsDeletedMessage();
+            messageStore.incrementTotalAckedMessageCountForQueue(message.getStorageQueueName(), 1);
         }
 
     }

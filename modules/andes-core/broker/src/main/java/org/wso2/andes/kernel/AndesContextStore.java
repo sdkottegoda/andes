@@ -138,8 +138,8 @@ public interface AndesContextStore extends HealthAwareStore {
      * created queue can then be incremented and decremented.
      *
      * @param destinationQueueName name of queue
-     * @see this.removeMessageCounterForQueue this.incrementMessageCountForQueue,
-     * this.decrementMessageCountForQueue
+     * @see this.removeMessageCounterForQueue this.incrementTotalMessageCountForQueue,
+     * this.decrementTotalMessageCountForQueue
      */
     void addMessageCounterForQueue(String destinationQueueName) throws AndesException;
 

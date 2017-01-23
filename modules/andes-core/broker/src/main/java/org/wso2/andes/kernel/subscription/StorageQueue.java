@@ -87,6 +87,11 @@ public class StorageQueue {
      */
     private MessageHandler messageHandler;
 
+    /**
+     * Node owning the queue
+     */
+    private String masterNode;
+
 
     /**
      * Create a storage queue instance. This instance MUST be registered at StorageQueueRegistry.
@@ -154,6 +159,40 @@ public class StorageQueue {
 
     public String toString() {
         return encodeAsString();
+    }
+
+
+    /**
+     * Set node handling delivery of the messages in this queue
+     *
+     * @param masterNode Id of the node
+     */
+    public void setMasterNode(String masterNode) {
+        this.masterNode = masterNode;
+    }
+
+    /**
+     * Get ID of the node handling message delivery of this queue
+     *
+     * @return ID of the node
+     */
+    public String getMasterNode() {
+        return masterNode;
+    }
+
+    /**
+     * Check if message handling of queue is owned by the current node
+     *
+     * @return true if queue master is the current node
+     */
+    public boolean isOwnedByCurrentNode() {
+        boolean isClusteringEnabled = AndesContext.getInstance().isClusteringEnabled();
+        if((!isClusteringEnabled) || (null == masterNode)) {
+            return true;
+        } else {
+            String currentNodeId = AndesContext.getInstance().getClusterAgent().getLocalNodeIdentifier();
+            return getMasterNode().equals(currentNodeId);
+        }
     }
 
     /**
@@ -417,15 +456,46 @@ public class StorageQueue {
     }
 
     /**
-     * Get message count for queue
+     * Get pending message count for queue. This is the number of messages
+     * yet to be delivered to consumers of the queue
      *
      * @return message count of the queue
      * @throws AndesException
      */
-    public long getMessageCount() throws AndesException {
+    public long getPendingMessageCount() throws AndesException {
         return messageHandler.getMessageCountForQueue();
     }
 
+    /**
+     * Get total number of messages came in for queue since broker start
+     *
+     * @return total number of incoming messages for the queue. -1 if queue
+     * master node is not this node
+     * @throws AndesException on error querying
+     */
+    public long getTotalReceivedMessageCount() throws AndesException {
+        if (isOwnedByCurrentNode()) {
+            return messageHandler.getTotalReceivedMessageCount();
+        } else {
+            return -1;
+        }
+    }
+
+    /**
+     * Get total number of messages acknowledged for queue since broker
+     * start.
+     *
+     * @return total number of messages acknowledged for queue. -1 if queue
+     * master node is not this node
+     * @throws AndesException on error querying
+     */
+    public long getTotalAckedMessageCount() throws AndesException {
+        if (isOwnedByCurrentNode()) {
+            return messageHandler.getTotalAckedMessageCount();
+        } else {
+            return -1;
+        }
+    }
 
     public boolean equals(Object o) {
         if (o instanceof StorageQueue) {

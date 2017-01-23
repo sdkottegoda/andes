@@ -22,7 +22,6 @@ import org.wso2.andes.configuration.enums.AndesConfiguration;
 import org.wso2.andes.kernel.subscription.StorageQueue;
 import org.wso2.andes.server.queue.DLCQueueUtils;
 import org.wso2.andes.store.cache.AndesMessageCache;
-import org.wso2.andes.store.cache.ExtendedMessageCacheImpl;
 import org.wso2.andes.store.cache.MessageCacheFactory;
 import org.wso2.andes.tools.utils.MessageTracer;
 
@@ -354,5 +353,26 @@ public class MessageHandler {
      */
     public void storeMessage(AndesMessage message) throws AndesException{
         metadataCache.addToCache(message);
+    }
+
+    /**
+     * Get total number of messages came in for queue since broker start
+     *
+     * @return total number of incoming messages for the queue. -1 if queue
+     * master node is not this node
+     */
+    public long getTotalReceivedMessageCount() throws AndesException {
+        return messageStore.getTotalReceivedMessageCount(queue.getName());
+    }
+
+    /**
+     * Get total number of messages acknowledged for queue since broker
+     * start.
+     *
+     * @return total number of messages acknowledged for queue. -1 if queue
+     * master node is not this node
+     */
+    public long getTotalAckedMessageCount() throws AndesException {
+        return messageStore.getTotalAckedMessageCount(queue.getName());
     }
 }

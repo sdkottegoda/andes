@@ -22,7 +22,6 @@ import com.gs.collections.impl.list.mutable.primitive.LongArrayList;
 import com.gs.collections.impl.map.mutable.primitive.LongObjectHashMap;
 import org.wso2.andes.kernel.AndesMessage;
 import org.wso2.andes.kernel.AndesMessagePart;
-import org.wso2.andes.kernel.DeliverableAndesMetadata;
 import org.wso2.andes.kernel.MessageBucket;
 
 import java.util.List;
@@ -48,7 +47,7 @@ public interface AndesMessageCache {
      *
      * @param messagesToRemove list of message Ids
      */
-    abstract void removeFromCache(LongArrayList messagesToRemove);
+    abstract void removeFromCache(List<Long> messagesToRemove);
 
     /**
      * Removes a message with a given id from the cache
