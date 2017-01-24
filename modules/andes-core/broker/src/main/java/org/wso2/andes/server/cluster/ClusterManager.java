@@ -127,6 +127,8 @@ public class ClusterManager implements StoreHealthListener{
         if(clusterAgent.isCoordinator()) {
             ClusterResourceHolder.getInstance().getSubscriptionManager().
                     closeAllActiveSubscriptionsOfNode(deletedNodeId);
+            andesContextStore.removeNodeData(deletedNodeId);
+            andesContextStore.clearQueueAssignementsForNode(deletedNodeId);
         }
     }
 

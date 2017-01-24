@@ -124,6 +124,8 @@ public final class AMQConstant
 
     public static final AMQConstant INVALID_ARGUMENT = new AMQConstant(409, "argument invalid", true);
 
+    public static final AMQConstant INVALID_DESTINAITION = new AMQConstant(410, "destination invalid", true);
+
     /**
      * The client sent a malformed frame that the server could not decode. This strongly implies a programming error
      * in the client.

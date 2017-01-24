@@ -549,4 +549,6 @@ public interface AndesContextStore extends HealthAwareStore {
      */
     void clearClusterNotifications(String nodeID) throws AndesException;
 
+    void clearQueueAssignementsForNode(String nodeId) throws AndesException;
+
 }

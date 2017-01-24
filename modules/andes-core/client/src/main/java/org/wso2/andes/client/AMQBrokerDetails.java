@@ -206,6 +206,16 @@ public class AMQBrokerDetails implements BrokerDetails
         _sslConfiguration = sslConfiguration;
     }
 
+    public AMQBrokerDetails(String host, int port, SSLConfiguration sslConfiguration, boolean defaultToTcp)
+    {
+        _host = host;
+        _port = port;
+        _sslConfiguration = sslConfiguration;
+        if (defaultToTcp){
+            _transport = "tcp";
+        }
+    }
+
     public String getHost()
     {
         return _host;

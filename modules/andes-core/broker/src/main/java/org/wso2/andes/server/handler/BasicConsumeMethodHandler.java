@@ -19,6 +19,7 @@ package org.wso2.andes.server.handler;
 
 import org.apache.log4j.Logger;
 import org.wso2.andes.AMQException;
+import org.wso2.andes.AMQInvalidDetinationException;
 import org.wso2.andes.framing.AMQMethodBody;
 import org.wso2.andes.framing.AMQShortString;
 import org.wso2.andes.framing.BasicConsumeBody;
@@ -165,6 +166,10 @@ public class BasicConsumeMethodHandler implements StateAwareMethodListener<Basic
                                                    "Cannot subscribe to queue "
                                                    + queue.getNameShortString()
                                                    + " exclusively as it already has a consumer");
+                }
+                catch (AMQInvalidDetinationException e)
+                {
+                    throw body.getChannelException(e.getErrorCode(), e.getMessage());
                 }
 
             }

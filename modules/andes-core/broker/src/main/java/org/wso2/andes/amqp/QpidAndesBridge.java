@@ -22,6 +22,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.andes.AMQException;
 import org.wso2.andes.AMQInternalException;
+import org.wso2.andes.AMQInvalidDetinationException;
 import org.wso2.andes.configuration.AndesConfigurationManager;
 import org.wso2.andes.configuration.enums.AndesConfiguration;
 import org.wso2.andes.exchange.ExchangeDefaults;
@@ -378,8 +379,9 @@ public class QpidAndesBridge {
                         .getStorageQueueRegistry().getStorageQueue(queue.getName());
                 if (!storageQueue.isOwnedByCurrentNode()) {
                     log.error("Incorrect node for connection of queue: " + queue.getName());
-                    throw new AMQException(AMQConstant.NOT_ALLOWED, "Incorrect node for queue: " + queue.getName()
-                            + ". Node destined to queue: " + storageQueue.getMasterNode());
+                    throw new AMQInvalidDetinationException("Incorrect node for queue: " + queue.getName()
+                                                            + ". Node destined to queue: " + storageQueue
+                                                                    .getMasterNode());
                 }
                 addLocalSubscriptionsForAllBindingsOfQueue(queue, subscription);
             }

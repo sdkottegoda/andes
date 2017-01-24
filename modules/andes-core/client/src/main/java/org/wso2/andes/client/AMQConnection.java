@@ -571,7 +571,7 @@ public class AMQConnection extends Closeable implements Connection, QueueConnect
 
     public boolean attemptReconnection(String host, int port)
     {
-        BrokerDetails bd = new AMQBrokerDetails(host, port, _sslConfiguration);
+        BrokerDetails bd = new AMQBrokerDetails(host, port, _sslConfiguration, true);
 
         _failoverPolicy.setBroker(bd);
 
@@ -588,7 +588,7 @@ public class AMQConnection extends Closeable implements Connection, QueueConnect
                 _logger.info("Unable to connect to broker at " + bd);
             }
 
-            attemptReconnection();
+//            attemptReconnection();
         }
 
         return false;
@@ -596,6 +596,8 @@ public class AMQConnection extends Closeable implements Connection, QueueConnect
 
     public boolean attemptReconnection()
     {
+
+        //TODO change to call webservice
         BrokerDetails broker = null;
         while (_failoverPolicy.failoverAllowed() && (broker = _failoverPolicy.getNextBrokerDetails()) != null)
         {
@@ -633,8 +635,9 @@ public class AMQConnection extends Closeable implements Connection, QueueConnect
         try {
             ProtocolVersion returnObject = AccessController.doPrivileged(new PrivilegedExceptionAction<ProtocolVersion>() {
                 public ProtocolVersion run() throws IOException, AMQException {
-
-                    return _delegate.makeBrokerConnection(brokerDetail);
+                    ProtocolVersion version = _delegate.makeBrokerConnection(brokerDetail);
+                    System.out.println("Made broker connection to: " + brokerDetail.getHost() + ":" + brokerDetail.getPort());
+                    return version;
 
                 }
 
@@ -1808,5 +1811,27 @@ public class AMQConnection extends Closeable implements Connection, QueueConnect
         //        System.out.println(response);
         //        response = "10.100.7.72:5672";
         return response;
+    }
+
+    public AMQDestination getDestination(){
+        ArrayList<AMQSession> sessions = new ArrayList<>(this.getSessions().values());
+        AMQSession session = sessions.get(0);
+        AMQDestination destionation = null;
+        if (!session.get_consumers().values().isEmpty()) {
+            ArrayList<BasicMessageConsumer> consumers = new ArrayList<BasicMessageConsumer>(session.get_consumers()
+                    .values());
+            BasicMessageConsumer consumer = consumers.get(0);
+            destionation = consumer.getDestination();
+        } else {
+            ArrayList<BasicMessageProducer> producers = new ArrayList<BasicMessageProducer>(session
+                    .get_producers().values());
+            BasicMessageProducer producer = producers.get(0);
+            try {
+                destionation = (AMQDestination) producer.getDestination();
+            } catch (JMSException e) {
+                e.printStackTrace();
+            }
+        }
+        return destionation;
     }
 }
