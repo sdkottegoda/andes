@@ -25,6 +25,7 @@ import org.wso2.andes.kernel.AndesException;
 import org.wso2.andes.management.common.mbeans.ClusterManagementInformation;
 import org.wso2.andes.management.common.mbeans.annotations.MBeanConstructor;
 import org.wso2.andes.management.common.mbeans.annotations.MBeanOperationParameter;
+import org.wso2.andes.server.cluster.coordination.distributor.NodeInfo;
 import org.wso2.andes.server.cluster.coordination.distributor.QueueDistributor;
 import org.wso2.andes.server.management.AMQManagedObject;
 
@@ -110,7 +111,8 @@ public class ClusterManagementInformationMBean extends AMQManagedObject implemen
             "to get port?") String protocol) throws MBeanException {
         try {
             AndesContextStore contextStore = AndesContext.getInstance().getAndesContextStore();
-            return new QueueDistributor(contextStore).getMasterNode(queueName, protocol);
+            NodeInfo queMasterNode = new QueueDistributor(contextStore).getMasterNode(queueName, protocol);
+            return queMasterNode.getHostName() + ":" + queMasterNode.getAmqpPort();
         } catch (AndesException e) {
             logger.error("Error while retrieving owning node for queue", e);
             throw new MBeanException(e, "Error while retrieving owning node for queue");

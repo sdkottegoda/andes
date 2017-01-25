@@ -123,7 +123,7 @@ public class InboundQueueEvent implements AndesInboundStateEvent {
     }
 
 
-    public StorageQueue toStorageQueue() {
+    public StorageQueue toStorageQueue() throws AndesException {
         return new StorageQueue(queueName, isDurable, isShared, queueOwner,isExclusive);
     }
 

@@ -37,6 +37,7 @@ import org.wso2.andes.store.AndesDataIntegrityViolationException;
 import org.wso2.carbon.metrics.manager.Level;
 import org.wso2.carbon.metrics.manager.MetricManager;
 import org.wso2.carbon.metrics.manager.Timer.Context;
+import org.wso2.andes.server.cluster.coordination.distributor.NodeInfo;
 
 import javax.sql.DataSource;
 import java.net.InetSocketAddress;
@@ -409,13 +410,15 @@ public class RDBMSAndesContextStoreImpl implements AndesContextStore {
     }
 
     @Override
-    public String getQueueOwningNode(String queueName) throws AndesException {
+    public NodeInfo getQueueOwningNode(String queueName) throws AndesException {
         Connection connection = null;
         PreparedStatement preparedStatement = null;
 
         String task = RDBMSConstants.TASK_RETRIEVING_QUEUE_TO_NODE_ASSIGNMENT + " queue name: "
                 + queueName;
         String nodeInformation = null;
+        String nodeId = null;
+        NodeInfo node = null;
         try {
             // done as a transaction
             connection = getConnection();
@@ -424,11 +427,14 @@ public class RDBMSAndesContextStoreImpl implements AndesContextStore {
             preparedStatement.setString(1, queueName);
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
+                nodeId = resultSet.getString(RDBMSConstants.NODE_ID);
                 nodeInformation = resultSet.getString(RDBMSConstants.NODE_INFO);
+                node = new NodeInfo(nodeId, nodeInformation);
                 break;
             }
+
             connection.commit();
-            return nodeInformation;
+            return node;
 
         } catch (SQLException e) {
             rollback(connection, task);

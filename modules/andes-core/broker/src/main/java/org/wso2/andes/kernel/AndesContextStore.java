@@ -25,6 +25,7 @@ import org.wso2.andes.kernel.router.AndesMessageRouter;
 import org.wso2.andes.kernel.subscription.AndesSubscription;
 import org.wso2.andes.kernel.subscription.StorageQueue;
 import org.wso2.andes.server.cluster.NodeHeartBeatData;
+import org.wso2.andes.server.cluster.coordination.distributor.NodeInfo;
 import org.wso2.andes.server.cluster.coordination.rdbms.MembershipEvent;
 import org.wso2.andes.server.cluster.coordination.ClusterNotification;
 import org.wso2.andes.store.HealthAwareStore;
@@ -354,7 +355,7 @@ public interface AndesContextStore extends HealthAwareStore {
      * @param queueName name of the queue
      * @throws AndesException in case of DB issue
      */
-    String getQueueOwningNode(String queueName) throws AndesException;
+    NodeInfo getQueueOwningNode(String queueName) throws AndesException;
 
     /**
      * Update the node owning the queue

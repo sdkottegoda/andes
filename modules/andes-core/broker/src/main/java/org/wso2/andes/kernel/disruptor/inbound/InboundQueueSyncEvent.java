@@ -109,7 +109,7 @@ public class InboundQueueSyncEvent implements AndesInboundStateEvent {
      *
      * @return a mock representation of a StorageQueue
      */
-    public StorageQueue toStorageQueue() {
+    public StorageQueue toStorageQueue() throws AndesException {
         return new StorageQueue(encodedQueueInfo);
     }
 

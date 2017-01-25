@@ -28,6 +28,7 @@ import org.wso2.andes.kernel.DeliverableAndesMetadata;
 import org.wso2.andes.kernel.MessageHandler;
 import org.wso2.andes.kernel.SubscriptionAlreadyExistsException;
 import org.wso2.andes.kernel.router.AndesMessageRouter;
+import org.wso2.andes.server.cluster.coordination.distributor.QueueDistributor;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -104,7 +105,7 @@ public class StorageQueue {
      * @param queueOwner  owner of the queue (virtualhost). This is needed for internal Qpid.
      * @param isExclusive is the queue exclusive. This is needed for internal Qpid.
      */
-    public StorageQueue(String name, boolean isDurable, boolean isShared, String queueOwner, boolean isExclusive) {
+    public StorageQueue(String name, boolean isDurable, boolean isShared, String queueOwner, boolean isExclusive) throws AndesException {
         this.name = name;
         this.isDurable = isDurable;
         this.isShared = isShared;
@@ -113,6 +114,8 @@ public class StorageQueue {
         this.lastPurgedTimestamp = 0L;
         this.boundedSubscriptions = new ArrayList<>(1);
         this.messageHandler = new MessageHandler(this);
+        masterNode = new QueueDistributor(AndesContext.getInstance().getAndesContextStore()).getMasterNode(this
+                .getName(),"amqp").getNodeID();
     }
 
     /**
@@ -120,7 +123,7 @@ public class StorageQueue {
      *
      * @param queueAsStr queue information as encoded string
      */
-    public StorageQueue(String queueAsStr) {
+    public StorageQueue(String queueAsStr) throws AndesException {
         String[] propertyToken = queueAsStr.split(",");
         for (String pt : propertyToken) {
             String[] tokens = pt.split("=");
@@ -146,6 +149,8 @@ public class StorageQueue {
             }
         }
         this.boundedSubscriptions = new ArrayList<>(1);
+        masterNode = new QueueDistributor(AndesContext.getInstance().getAndesContextStore()).getMasterNode(this
+                        .getName(),"amqp").getNodeID();
     }
 
     public String encodeAsString() {

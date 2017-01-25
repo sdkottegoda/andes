@@ -16,7 +16,6 @@
 package org.wso2.andes.server.cluster.coordination.distributor;
 
 
-import org.wso2.andes.kernel.AndesContext;
 import org.wso2.andes.kernel.AndesContextStore;
 import org.wso2.andes.kernel.AndesException;
 
@@ -30,18 +29,18 @@ public class QueueDistributor {
         this.queueDistributeStategy = new RoundRobinQueueDistributor(contextStore);
     }
 
-    public synchronized String getMasterNode(String queueName, String protocol) throws AndesException {
-        String nodeToAssignQueue;
+    public synchronized NodeInfo getMasterNode(String queueName, String protocol) throws AndesException {
+        NodeInfo nodeToAssignQueue;
         //check if queue is already assigned
         nodeToAssignQueue = contextStore.getQueueOwningNode(queueName);
         //if not assigned decide to which node
         if(null == nodeToAssignQueue) {
-            NodeInfo node = queueDistributeStategy.getMasterNode(queueName);
+            nodeToAssignQueue = queueDistributeStategy.getMasterNode(queueName);
             //store assignment in persistent store
-            contextStore.assignNodeForQueue(queueName, node.getNodeID());
-            AndesContext.getInstance().getStorageQueueRegistry().
-                    getStorageQueue(queueName).setMasterNode(node.getNodeID());
-            nodeToAssignQueue = node.getHostName() + ":" + node.getAmqpPort();
+            contextStore.assignNodeForQueue(queueName, nodeToAssignQueue.getNodeID());
+//            AndesContext.getInstance().getStorageQueueRegistry().
+//                    getStorageQueue(queueName).setMasterNode(node.getNodeID());
+//            nodeToAssignQueue = node.getHostName() + ":" + node.getAmqpPort();
         }
         //return hostname:port(AMQP) of assigned node to connect
         return nodeToAssignQueue;

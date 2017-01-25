@@ -407,6 +407,7 @@ public class RDBMSConstants {
 
     protected static final String PS_SELECT_ASSIGNED_NODE_FOR_QUEUE =
             "SELECT " + NODE_INFO_TABLE + "." + NODE_INFO
+                    + ", " + NODE_INFO_TABLE + "." + NODE_ID + " as " + NODE_ID
                     + " FROM " + NODE_INFO_TABLE + " INNER JOIN "
                     + QUEUE_MASTER_TABLE + " ON " + NODE_INFO_TABLE
                     + "." + NODE_ID + "=" + QUEUE_MASTER_TABLE + "." + NODE_ID
