@@ -16,7 +16,7 @@
 package org.wso2.andes.server.cluster.coordination.distributor;
 
 
-class NodeInfo {
+public class NodeInfo {
 
     private String nodeID;
 
@@ -26,10 +26,18 @@ class NodeInfo {
 
     private int numOfAssignedQueues;
 
-    NodeInfo(String nodeID, String hostName, String amqpPort) {
+    public NodeInfo(String nodeID, String hostName, String amqpPort) {
         this.nodeID = nodeID;
         this.hostName = hostName;
         this.amqpPort = amqpPort;
+        this.numOfAssignedQueues = 0;
+    }
+
+    public NodeInfo(String nodeID, String nodeInformation) {
+        this.nodeID = nodeID;
+        String[] hostPort = nodeInformation.split(":");
+        this.hostName = hostPort[0];
+        this.amqpPort = hostPort[1];
         this.numOfAssignedQueues = 0;
     }
 
@@ -37,11 +45,11 @@ class NodeInfo {
         return nodeID;
     }
 
-    String getHostName() {
+    public String getHostName() {
         return hostName;
     }
 
-    String getAmqpPort() {
+    public String getAmqpPort() {
         return amqpPort;
     }
 

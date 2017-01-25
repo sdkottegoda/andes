@@ -53,7 +53,7 @@ public class StorageQueueRegistry {
                                              boolean isDurable,
                                              boolean isShared,
                                              String queueOwner,
-                                             boolean isExclusive) {
+                                             boolean isExclusive) throws AndesException {
 
         StorageQueue storageQueue = storageQueueMap.get(queueName);
         if (null == storageQueue) {

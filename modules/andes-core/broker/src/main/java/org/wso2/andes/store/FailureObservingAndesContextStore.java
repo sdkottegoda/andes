@@ -25,6 +25,7 @@ import org.wso2.andes.kernel.AndesContextStore;
 import org.wso2.andes.kernel.AndesException;
 import org.wso2.andes.kernel.DurableStoreConnection;
 import org.wso2.andes.kernel.router.AndesMessageRouter;
+import org.wso2.andes.server.cluster.coordination.distributor.NodeInfo;
 import org.wso2.andes.server.cluster.coordination.rdbms.MembershipEvent;
 import org.wso2.andes.server.cluster.NodeHeartBeatData;
 import org.wso2.andes.server.cluster.coordination.ClusterNotification;
@@ -232,7 +233,7 @@ public class FailureObservingAndesContextStore implements AndesContextStore {
      * @param queueName
      */
     @Override
-    public String getQueueOwningNode(String queueName) throws AndesException {
+    public NodeInfo getQueueOwningNode(String queueName) throws AndesException {
         try {
             return wrappedAndesContextStoreInstance.getQueueOwningNode(queueName);
         } catch (AndesStoreUnavailableException exception) {
