@@ -25,7 +25,6 @@ import org.apache.axis.client.Service;
 import org.wso2.andes.AMQException;
 import org.wso2.andes.jms.BrokerDetails;
 import org.wso2.andes.jms.ConnectionURL;
-import org.wso2.andes.jms.FailoverPolicy;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -156,14 +155,10 @@ public class AMQQueueSessionAdaptor implements QueueSession, AMQSessionAdapter {
     }
 
     public MessageConsumer createConsumer(Destination destination) throws JMSException {
-        //        return _session.createConsumer(destination);
         checkValidDestination(destination);
-
-        return _session.createConsumerImpl(destination, _session.getDefaultPrefetchHigh(), _session
-                        .getDefaultPrefetchLow(), false,
-                (destination
-                        instanceof
-                        Topic), null, null,
+        return _session.createConsumerImpl(destination, _session.getDefaultPrefetchHigh(),
+                                           _session.getDefaultPrefetchLow(), false,
+                                           (destination instanceof Topic), null, null,
                 ((destination instanceof AMQDestination) && ((AMQDestination) destination).isBrowseOnly()), false);
 
     }
@@ -186,8 +181,8 @@ public class AMQQueueSessionAdaptor implements QueueSession, AMQSessionAdapter {
         throw new IllegalStateException("Cannot call createDurableSubscriber from QueueSession");
     }
 
-    public TopicSubscriber createDurableSubscriber(Topic topic, String string, String string1, boolean b) throws
-            JMSException {
+    public TopicSubscriber createDurableSubscriber(Topic topic, String string, String string1, boolean b)
+            throws JMSException {
         throw new IllegalStateException("Cannot call createDurableSubscriber from QueueSession");
     }
 
@@ -224,16 +219,12 @@ public class AMQQueueSessionAdaptor implements QueueSession, AMQSessionAdapter {
                                 .getSSLConfiguration());
                         brokerDetails.setTransport(connection.getActiveBrokerDetails().getTransport());
                         ConnectionURL url = connection.getConnectionURL();
-//                        url.getAllBrokerDetails().clear();
                         url.getAllBrokerDetails().add(0, brokerDetails);
-//                        url.getURL().replace("10.100.7.72:5672","10.100.7.72:5673");
-//                        connection.setFailoverPolicy(new FailoverPolicy(connection.getConnectionURL(), connection));
-//                        connection.makeBrokerConnection(brokerDetails);
                         connection.reInitAMQConnection(url);
                         if (!connection._closed.getAndSet(false)) {
                             connection._closing.set(false);
                         }
-                            this._session = (AMQSession) connection.createSession(false, 1);
+                        this._session = (AMQSession) connection.createSession(false, 1);
                     } else
                         throw new InvalidDestinationException(
                                 "Invalid node: " + host + ":" + port + " for destination. "
@@ -250,7 +241,6 @@ public class AMQQueueSessionAdaptor implements QueueSession, AMQSessionAdapter {
 
     private String getNodeForDestination(Destination destination) throws ServiceException, MalformedURLException,
             RemoteException, JMSException {
-        System.out.println("Calling web service!!!");
         String host = this._session._connection.getActiveBrokerDetails().getHost();
         String port = "9443";
         String endpoint = "https://" + host + ":" + port + "/services/AndesManagerService";
@@ -266,8 +256,6 @@ public class AMQQueueSessionAdaptor implements QueueSession, AMQSessionAdapter {
         call.setPassword("admin");
 
         String response = (String) call.invoke(new Object[]{((Queue) destination).getQueueName(), "amqp"});
-        //        System.out.println(response);
-        //        response = "10.100.7.72:5672";
         return response;
     }
 }

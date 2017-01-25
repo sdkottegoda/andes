@@ -20,7 +20,6 @@
  */
 package org.wso2.andes.client;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
@@ -68,9 +67,6 @@ import javax.xml.rpc.ServiceException;
 import org.apache.axis.client.Call;
 import org.apache.axis.client.Service;
 
-import org.apache.axis2.AxisFault;
-import org.apache.axis2.client.Options;
-import org.apache.axis2.client.ServiceClient;
 import org.wso2.andes.AMQChannelClosedException;
 import org.wso2.andes.AMQDisconnectedException;
 import org.wso2.andes.AMQException;
@@ -99,9 +95,7 @@ import org.wso2.andes.framing.AMQShortString;
 import org.wso2.andes.framing.FieldTable;
 import org.wso2.andes.framing.FieldTableFactory;
 import org.wso2.andes.framing.MethodRegistry;
-import org.wso2.andes.jms.BrokerDetails;
 import org.wso2.andes.jms.Session;
-import org.wso2.andes.protocol.AMQConstant;
 import org.wso2.andes.thread.Threading;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1498,7 +1492,6 @@ public abstract class AMQSession<C extends BasicMessageConsumer, P extends Basic
 
     public QueueSender createSender(Queue queue) throws JMSException
     {
-        checkValidDestination(queue);
         checkNotClosed();
 
         // return (QueueSender) createProducer(queue);
@@ -2525,36 +2518,7 @@ public abstract class AMQSession<C extends BasicMessageConsumer, P extends Basic
     private void checkValidDestination(Destination destination) throws InvalidDestinationException {
         if (destination == null) {
             throw new javax.jms.InvalidDestinationException("Invalid Queue");
-        } /*else {
-            try {
-                String nodeForDesitnation = getNodeForDestination(destination);
-                String[] hostPort = nodeForDesitnation.split(":");
-                String host = this._connection.getActiveBrokerDetails().getHost();
-                int port = this._connection.getActiveBrokerDetails().getPort();
-                if (!host.equals(hostPort[0])
-                    || Integer.parseInt(hostPort[1]) != port) {
-                    if (this._connection.getSessions().size() == 1) {
-                        this._connection.closeOnlyConnection();
-                        System.out.println("Redirected connection to: " + nodeForDesitnation);
-                        BrokerDetails brokerDetails = new AMQBrokerDetails(host, port, this._connection
-                                .getSSLConfiguration());
-                        brokerDetails.setTransport(this._connection.getActiveBrokerDetails().getTransport());
-                        _connection.makeBrokerConnection(brokerDetails);
-                        if (!_connection._closed.getAndSet(false)) {
-                            _connection._closing.set(false);
-                        }
-                    }
-                    else
-                        throw new InvalidDestinationException("Invalid node: " + host + ":" + port + " for destination. "
-                                                              + "Matching node for destination: "
-                                                              + destination + " is " + nodeForDesitnation);
-
-                }
-            } catch (ServiceException | JMSException | IOException | AMQException e) {
-                //TODO just only for the POC
-                throw new InvalidDestinationException(e.getMessage());
-            }
-        }*/
+        }
     }
 
     private void checkValidQueue(Queue queue) throws InvalidDestinationException
@@ -3675,112 +3639,4 @@ public abstract class AMQSession<C extends BasicMessageConsumer, P extends Basic
     {
     	return DECLARE_EXCHANGES;
     }
-
-    private String getNodeForDestination(Destination destination) throws ServiceException, MalformedURLException,
-            RemoteException, JMSException {
-        System.out.println("Calling web service!!!");
-        String host = this._connection.getActiveBrokerDetails().getHost();
-        String port = "9443";
-        String endpoint = "https://" + host + ":" + port + "/services/AndesManagerService";
-        System.setProperty(
-                "javax.net.ssl.trustStore",
-                "/home/sasikala/Documents/MB/Cluster/MB1/wso2mb-3.2.0-SNAPSHOT/repository/resources/security"
-                + "/wso2carbon.jks");
-        Service service = new Service();
-        Call call = (Call) service.createCall();
-        call.setTargetEndpointAddress(new java.net.URL(endpoint));
-        call.setOperationName(new QName("http://mgt.cluster.andes.carbon.wso2.org", "getOwningNodeOfQueue"));
-        call.setUsername("admin");
-        call.setPassword("admin");
-
-        String response = (String) call.invoke(new Object[]{((Queue)destination).getQueueName(), "amqp"});
-//        System.out.println(response);
-//        response = "10.100.7.72:5672";
-        return response;
-    }
-
-/*
-    public class LoginAdminServiceClient {
-        private final String serviceName = "AuthenticationAdmin";
-        private AuthenticationAdminStub authenticationAdminStub;
-        private String endPoint;
-
-        public LoginAdminServiceClient(String backEndUrl) throws AxisFault {
-            this.endPoint = backEndUrl + "/services/" + serviceName;
-            authenticationAdminStub = new AuthenticationAdminStub(endPoint);
-        }
-
-        public String authenticate(String userName, String password) throws RemoteException,
-                LoginAuthenticationExceptionException {
-
-            String sessionCookie = null;
-
-            if (authenticationAdminStub.login(userName, password, "localhost")) {
-                System.out.println("Login Successful");
-
-                ServiceContext serviceContext = authenticationAdminStub.
-                        _getServiceClient().getLastOperationContext().getServiceContext();
-                sessionCookie = (String) serviceContext.getProperty(HTTPConstants.COOKIE_STRING);
-                System.out.println(sessionCookie);
-            }
-
-            return sessionCookie;
-        }
-
-        public void logOut() throws RemoteException, LogoutAuthenticationExceptionException {
-            authenticationAdminStub.logout();
-        }
-    }
-
-    class ServiceAdminClient {
-        private final String serviceName = "ServiceAdmin";
-        private ServiceAdminStub serviceAdminStub;
-        private String endPoint;
-
-        public ServiceAdminClient(String backEndUrl, String sessionCookie) throws AxisFault {
-            this.endPoint = backEndUrl + "/services/" + serviceName;
-            serviceAdminStub = new ServiceAdminStub(endPoint);
-            //Authenticate Your stub from sessionCooke
-            ServiceClient serviceClient;
-            Options option;
-
-            serviceClient = serviceAdminStub._getServiceClient();
-            option = serviceClient.getOptions();
-            option.setManageSession(true);
-            option.setProperty(org.apache.axis2.transport.http.HTTPConstants.COOKIE_STRING, sessionCookie);
-        }
-
-        public void deleteService(String[] serviceGroup) throws RemoteException {
-            serviceAdminStub.deleteServiceGroups(serviceGroup);
-
-        }
-
-        public ServiceMetaDataWrapper listServices() throws RemoteException {
-            return serviceAdminStub.listServices("ALL", "*", 0);
-        }
-    }
-
-    public class ListServices {
-        public static void main(String[] args)
-                throws RemoteException, LoginAuthenticationExceptionException,
-                LogoutAuthenticationExceptionException {
-            System.setProperty("javax.net.ssl.trustStore", "$ESB_HOME/repository/resources/security/wso2carbon.jks");
-            System.setProperty("javax.net.ssl.trustStorePassword", "wso2carbon");
-            System.setProperty("javax.net.ssl.trustStoreType", "JKS");
-            String backEndUrl = "https://localhost:9443";
-
-            LoginAdminServiceClient login = new LoginAdminServiceClient(backEndUrl);
-            String session = login.authenticate("admin", "admin");
-            ServiceAdminClient serviceAdminClient = new ServiceAdminClient(backEndUrl, session);
-            ServiceMetaDataWrapper serviceList = serviceAdminClient.listServices();
-            System.out.println("Service Names:");
-            for (ServiceMetaData serviceData : serviceList.getServices()) {
-                System.out.println(serviceData.getName());
-            }
-
-            login.logOut();
-        }
-    }
-*/
-
 }

@@ -69,13 +69,6 @@ public class RoundRobinQueueDistributor implements QueueDistributeStrategy {
             @Override
             public int compare(final NodeInfo lhs,NodeInfo rhs) {
                 return lhs.getNumOfAssignedQueues() - rhs.getNumOfAssignedQueues();
-                /*if(lhs.getNumOfAssignedQueues() < rhs.getNumOfAssignedQueues()) {
-                    return 1;
-                } else if (lhs.getNumOfAssignedQueues() > rhs.getNumOfAssignedQueues()) {
-                    return -1;
-                } else {
-                    return 0;
-                }*/
             }
         });
     }
