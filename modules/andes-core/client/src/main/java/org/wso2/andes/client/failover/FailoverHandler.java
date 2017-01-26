@@ -187,43 +187,24 @@ public class FailoverHandler implements Runnable
             // all specified hosts
 
             // if _host has value then we are performing a redirect.
-
-                /*ArrayList<AMQSession> sessions = new ArrayList<>(_amqProtocolHandler.getConnection().getSessions()
-                        .values());
-                AMQSession session = sessions.get(0);
-                AMQDestination destionation = null;
-                if (!session.get_consumers().values().isEmpty()) {
-                    ArrayList<BasicMessageConsumer> consumers = new ArrayList<BasicMessageConsumer>(session.get_consumers()
-                            .values());
-                    BasicMessageConsumer consumer = consumers.get(0);
-                    destionation = consumer.getDestination();
-                } else {
-                    ArrayList<BasicMessageProducer> producers = new ArrayList<BasicMessageProducer>(session
-                            .get_producers().values());
-                    BasicMessageProducer producer = producers.get(0);
-                    try {
-                        destionation = (AMQDestination) producer.getDestination();
-                    } catch (JMSException e) {
-                        e.printStackTrace();
-                    }
-                }*/
             AMQConnection connection = _amqProtocolHandler.getConnection();
             AMQDestination destination = connection.getDestination();
             try {
-                        String nodeForDestination;
-                        if (_host != null){
-                            nodeForDestination = getNodeForDestination(destination, _host);
-                            failoverSucceeded = _amqProtocolHandler.getConnection().attemptReconnection(_host, _port);
-                            String[] hostPort = nodeForDestination.split(":");
-                            String matchingHost = hostPort[0];
-                            int matchingPort = Integer.parseInt(hostPort[1]);
-                            _host = matchingHost;
-                            _port = matchingPort;
-                        }
-                if (!failoverSucceeded){
+                String nodeForDestination;
+                if (_host != null) {
+                    nodeForDestination = getNodeForDestination(destination, _host);
+                    String[] hostPort = nodeForDestination.split(":");
+                    String matchingHost = hostPort[0];
+                    int matchingPort = Integer.parseInt(hostPort[1]);
+                    _host = matchingHost;
+                    _port = matchingPort;
+                    failoverSucceeded = _amqProtocolHandler.getConnection().attemptReconnection(_host, _port);
+                }
+                if (!failoverSucceeded) {
                     BrokerDetails broker;
                     while ((!failoverSucceeded && (connection.getFailoverPolicy().failoverAllowed() &&
-                                                           (broker = connection.getFailoverPolicy().getNextBrokerDetails()) != null))) {
+                                                   (broker = connection.getFailoverPolicy().getNextBrokerDetails())
+                                                   != null))) {
 
                         nodeForDestination = getNodeForDestination(destination, broker.getHost());
                         String[] hostPort = nodeForDestination.split(":");
@@ -233,7 +214,7 @@ public class FailoverHandler implements Runnable
                         _port = matchingPort;
                         failoverSucceeded = _amqProtocolHandler.getConnection().attemptReconnection(_host, _port);
                     }
-                        }
+                }
             } catch (JMSException e) {
                 e.printStackTrace();
             } catch (RemoteException e) {
@@ -243,14 +224,6 @@ public class FailoverHandler implements Runnable
             } catch (MalformedURLException e) {
                 e.printStackTrace();
             }
-
-            /*if (_host != null)
-            {
-            }
-            else
-            {
-                failoverSucceeded = _amqProtocolHandler.getConnection().attemptReconnection();
-            }*/
 
             if (!failoverSucceeded)
             {
@@ -346,8 +319,6 @@ public class FailoverHandler implements Runnable
     private String getNodeForDestination(Destination destination, String host) throws ServiceException,
             MalformedURLException,
             RemoteException, JMSException {
-        System.out.println("Calling web service!!!");
-//        String host = _host;
         String port = "9443";
         String endpoint = "https://" + host + ":" + port + "/services/AndesManagerService";
         System.setProperty(
@@ -360,10 +331,7 @@ public class FailoverHandler implements Runnable
         call.setOperationName(new QName("http://mgt.cluster.andes.carbon.wso2.org", "getOwningNodeOfQueue"));
         call.setUsername("admin");
         call.setPassword("admin");
-
         String response = (String) call.invoke(new Object[]{((Queue) destination).getQueueName(), "amqp"});
-        //        System.out.println(response);
-        //        response = "10.100.7.72:5672";
         return response;
     }
 }

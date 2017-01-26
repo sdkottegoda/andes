@@ -416,8 +416,8 @@ public class RDBMSAndesContextStoreImpl implements AndesContextStore {
 
         String task = RDBMSConstants.TASK_RETRIEVING_QUEUE_TO_NODE_ASSIGNMENT + " queue name: "
                 + queueName;
-        String nodeInformation = null;
-        String nodeId = null;
+        String nodeInformation;
+        String nodeId;
         NodeInfo node = null;
         try {
             // done as a transaction

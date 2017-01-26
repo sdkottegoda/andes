@@ -23,15 +23,10 @@ import org.wso2.andes.protocol.AMQConstant;
 /**
  * Thrown if a subscription is made to a node which is not allowed to cater the subscribed queue.
  */
-public class AMQInvalidDetinationException extends AMQException
+public class AMQInvalidDestinationException extends AMQException
 {
-    public AMQInvalidDetinationException(String message, Throwable cause)
-    {
-        super(AMQConstant.INVALID_DESTINAITION, message, cause);
-    }
 
-    public AMQInvalidDetinationException(String message)
-    {
+    public AMQInvalidDestinationException(String message) {
         super(AMQConstant.INVALID_DESTINAITION, message);
     }
 }

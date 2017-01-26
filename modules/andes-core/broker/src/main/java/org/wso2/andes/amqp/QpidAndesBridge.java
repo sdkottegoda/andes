@@ -22,9 +22,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.andes.AMQException;
 import org.wso2.andes.AMQInternalException;
-import org.wso2.andes.AMQInvalidDetinationException;
-import org.wso2.andes.configuration.AndesConfigurationManager;
-import org.wso2.andes.configuration.enums.AndesConfiguration;
+import org.wso2.andes.AMQInvalidDestinationException;
 import org.wso2.andes.exchange.ExchangeDefaults;
 import org.wso2.andes.framing.AMQShortString;
 import org.wso2.andes.framing.abstraction.ContentChunk;
@@ -32,7 +30,6 @@ import org.wso2.andes.kernel.Andes;
 import org.wso2.andes.kernel.AndesAckData;
 import org.wso2.andes.kernel.AndesChannel;
 import org.wso2.andes.kernel.AndesContext;
-import org.wso2.andes.kernel.AndesContextStore;
 import org.wso2.andes.kernel.AndesException;
 import org.wso2.andes.kernel.AndesMessage;
 import org.wso2.andes.kernel.AndesMessageMetadata;
@@ -58,7 +55,6 @@ import org.wso2.andes.protocol.AMQConstant;
 import org.wso2.andes.server.AMQChannel;
 import org.wso2.andes.server.ClusterResourceHolder;
 import org.wso2.andes.server.binding.Binding;
-import org.wso2.andes.server.cluster.coordination.distributor.QueueDistributor;
 import org.wso2.andes.server.exchange.Exchange;
 import org.wso2.andes.server.message.AMQMessage;
 import org.wso2.andes.server.queue.AMQQueue;
@@ -68,8 +64,6 @@ import org.wso2.andes.server.store.StorableMessageMetaData;
 import org.wso2.andes.server.subscription.Subscription;
 import org.wso2.andes.server.subscription.SubscriptionImpl;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -379,8 +373,8 @@ public class QpidAndesBridge {
                         .getStorageQueueRegistry().getStorageQueue(queue.getName());
                 if (!storageQueue.isOwnedByCurrentNode()) {
                     log.error("Incorrect node for connection of queue: " + queue.getName());
-                    throw new AMQInvalidDetinationException("Incorrect node for queue: " + queue.getName()
-                                                            + ". Node destined to queue: " + storageQueue
+                    throw new AMQInvalidDestinationException("Incorrect node for queue: " + queue.getName()
+                                                             + ". Node destined to queue: " + storageQueue
                                                                     .getMasterNode());
                 }
                 addLocalSubscriptionsForAllBindingsOfQueue(queue, subscription);

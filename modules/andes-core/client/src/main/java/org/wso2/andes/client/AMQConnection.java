@@ -588,7 +588,6 @@ public class AMQConnection extends Closeable implements Connection, QueueConnect
                 _logger.info("Unable to connect to broker at " + bd);
             }
 
-//            attemptReconnection();
         }
 
         return false;
@@ -596,8 +595,6 @@ public class AMQConnection extends Closeable implements Connection, QueueConnect
 
     public boolean attemptReconnection()
     {
-
-        //TODO change to call webservice
         BrokerDetails broker = null;
         while (_failoverPolicy.failoverAllowed() && (broker = _failoverPolicy.getNextBrokerDetails()) != null)
         {
@@ -907,14 +904,6 @@ public class AMQConnection extends Closeable implements Connection, QueueConnect
             }finally{
                 _closing.set(false);
             }
-        }
-    }
-
-    public void closeOnlyConnection() {
-        if (!_closed.getAndSet(true)) {
-
-            _closing.set(false);
-
         }
     }
 
@@ -1744,76 +1733,7 @@ public class AMQConnection extends Closeable implements Connection, QueueConnect
         }
     }
 
-    public AMQSession checkValidDestination(Destination destination) throws InvalidDestinationException {
-        if (destination == null) {
-            throw new javax.jms.InvalidDestinationException("Invalid Queue");
-        } else {
-            try {
-                String nodeForDesitnation = getNodeForDestination(destination);
-                String[] hostPort = nodeForDesitnation.split(":");
-//                AMQConnection connection = this._session._connection;
-                String host = this.getActiveBrokerDetails().getHost();
-                int port = this.getActiveBrokerDetails().getPort();
-                String matchinHost = hostPort[0];
-                int matchingPort = Integer.parseInt(hostPort[1]);
-                if (!host.equals(matchinHost)
-                    || matchingPort != port) {
-                    if (this.getSessions().size() == 1) {
-                        this.close();
-                        System.out.println("Redirected connection to: " + nodeForDesitnation);
-                        BrokerDetails brokerDetails = new AMQBrokerDetails(matchinHost, matchingPort, this
-                                .getSSLConfiguration());
-                        brokerDetails.setTransport(this.getActiveBrokerDetails().getTransport());
-                        ConnectionURL url = this.getConnectionURL();
-                        url.getAllBrokerDetails().clear();
-                        url.addBrokerDetails(brokerDetails);
-                        //                        url.getURL().replace("10.100.7.72:5672","10.100.7.72:5673");
-                        //                        connection.setFailoverPolicy(new FailoverPolicy(connection.getConnectionURL(), connection));
-                        //                        connection.makeBrokerConnection(brokerDetails);
-                        this.reInitAMQConnection(url);
-                        if (!this._closed.getAndSet(false)) {
-                            this._closing.set(false);
-                        }
-                        return (AMQSession) this.createSession(true, 1);
-                    } else
-                        throw new InvalidDestinationException(
-                                "Invalid node: " + host + ":" + port + " for destination. "
-                                + "Matching node for destination: "
-                                + destination + " is " + nodeForDesitnation);
-
-                }
-            } catch (ServiceException | JMSException | IOException | AMQException e) {
-                //TODO just only for the POC
-                throw new InvalidDestinationException(e.getMessage());
-            }
-        }
-        return null;
-    }
-
-    private String getNodeForDestination(Destination destination) throws ServiceException, MalformedURLException,
-            RemoteException, JMSException {
-        System.out.println("Calling web service!!!");
-        String host = this.getActiveBrokerDetails().getHost();
-        String port = "9443";
-        String endpoint = "https://" + host + ":" + port + "/services/AndesManagerService";
-        System.setProperty(
-                "javax.net.ssl.trustStore",
-                "/home/sasikala/Documents/MB/Cluster/MB1/wso2mb-3.2.0-SNAPSHOT/repository/resources/security"
-                + "/wso2carbon.jks");
-        Service service = new Service();
-        Call call = (Call) service.createCall();
-        call.setTargetEndpointAddress(new java.net.URL(endpoint));
-        call.setOperationName(new QName("http://mgt.cluster.andes.carbon.wso2.org", "getOwningNodeOfQueue"));
-        call.setUsername("admin");
-        call.setPassword("admin");
-
-        String response = (String) call.invoke(new Object[]{((Queue) destination).getQueueName(), "amqp"});
-        //        System.out.println(response);
-        //        response = "10.100.7.72:5672";
-        return response;
-    }
-
-    public AMQDestination getDestination(){
+    public AMQDestination getDestination() {
         ArrayList<AMQSession> sessions = new ArrayList<>(this.getSessions().values());
         AMQSession session = sessions.get(0);
         AMQDestination destionation = null;
