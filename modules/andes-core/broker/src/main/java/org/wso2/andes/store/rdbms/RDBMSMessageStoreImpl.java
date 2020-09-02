@@ -1221,6 +1221,7 @@ public class RDBMSMessageStoreImpl implements MessageStore {
             removeFromCache(messageIDsToRemoveFromCache);
             // First remove content and then metadata to avoid foreign key constraints.
             contentRemovalPreparedStatement.executeBatch();
+            expirationDataRemovalPreparedStatement.executeBatch();
             metadataRemovalPreparedStatement.executeBatch();
         } finally {
             close(contentRemovalPreparedStatement, TASK_DELETING_METADATA);
